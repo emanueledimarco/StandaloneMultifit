@@ -183,7 +183,7 @@ int main(int argc, char** argv) {
   if( indx < 0 )  indx = 0;
   if( indx > 13 ) indx = 13;
   char hname[120];
-  sprintf(hname,"PileupPDFs/pupdf_%d",indx);
+  snprintf(hname,120,"PileupPDFs/pupdf_%d",indx);
   TH1D *pupdf = (TH1D*)file->Get(hname);
   pupdf->SetDirectory(0);
   

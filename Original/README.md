@@ -6,7 +6,10 @@ Create data
     g++ -o CreateData  CreateData.cc -std=c++11 `root-config --cflags --glibs`
 
     ./CreateData     
-    ./CreateData   temporal_shift      number_of_events       NSAMPLES       NFREQ     nPU    signalAmplitude    sigmaNoise     puFactor  wf_name_string    pu_shift     noise-correlation    pedestal  slew-rate-distortion
+                        1                     2                  3            4        5           6                   7                 8           9              10              11               12              13
+    ./CreateData   temporal_shift      number_of_events       NSAMPLES       NFREQ     nPU    signalAmplitude    sigmaNoiseScale     puFactor  wf_name_string    pu_shift     noise-correlation    pedestal  slew-rate-distortion
+
+    ./CreateData        -13                   11                10            25       40           10                 1                 1          CRRC43             0             0.5                0
 
     ./CreateData -13        11    10     25     0     10    0         0      CRRC43     0    0.5       0
     ./CreateData -13        1     10     25     0     10    0         0      CRRC43     0    0.5       0
