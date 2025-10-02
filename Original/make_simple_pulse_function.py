@@ -2,25 +2,26 @@ import ROOT
 import math
 import numpy as np
 
-# dummy phase2 PS params
-ps_params = np.array([1,-3,1,1,7,0])
+# dummy phase2 PS params (time units in 1/4 ns)
+#                     0 1  2 3 4 5 
+ps_params = np.array([1,18,3,5,3,1])
 
 def pyf_tf1_coulomb(x, p):
     return p[1] * x[0] * x[1] / (p[0]**2) * math.exp(-p[2] / p[0])
 
 def pyf_f(t, t0, tau_r):
-    t -= t0
-    return 1./(np.exp(-1./tau_r * t) + 1)
+    tshift = t-t0
+    return 1./(np.exp(-1./tau_r * tshift) + 1)
 
 # fast decay time (fluorescence)
 def pyf_g(t, t0, tau_f):
-    t -= t0
-    return 1./(np.exp(t/tau_f) + 1)
+    tshift = t-t0
+    return 1./(np.exp(tshift/tau_f) + 1)
 
 # slow decay time (phosphorence)
 def pyf_h(t, t0, tau_s):
-    t-=t0
-    return 1./(np.exp(t/tau_s) + 1)
+    tshift = t-t0
+    return 1./(np.exp(tshift/tau_s) + 1)
 
 def pyf_total(t, p):
     # p[0] = A = pulse amplitude
@@ -32,8 +33,8 @@ def pyf_total(t, p):
     return p[0] * pyf_f(t,p[1],p[2]) * (p[5] * pyf_g(t,p[1],p[3]) + (1-p[5]) * pyf_h(t,p[1],p[4])) 
 
 def makeInputPSGraph():
-    n = 2000
-    x = np.linspace(-10,990,n)
+    n = 4000 # steps in 1/4 ns
+    x = np.linspace(0,1000,n+1)
     y = pyf_total(x,ps_params)
 
     outFile = ROOT.TFile("data/EmptyFileIdealPSphase2.root","recreate")
@@ -44,10 +45,11 @@ def makeInputPSGraph():
     gr.SetName("grPulseShape")
     gr.SetMarkerStyle(ROOT.kFullCircle)
     gr.SetMarkerSize(0.5)
+    # gr.GetXaxis().SetRangeUser(0,50)
     
-    c = ROOT.TCanvas("c","c",600,600)
-    gr.Draw("ALP")
-    c.SaveAs("pstest.pdf")
+    # c = ROOT.TCanvas("c","c",600,600)
+    # gr.Draw("ALP")
+    # c.SaveAs("pstest.pdf")
     
     gr.Write()
     outFile.Close()
