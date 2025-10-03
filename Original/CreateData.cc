@@ -103,8 +103,8 @@ int main(int argc, char** argv) {
   
   //---- fix the correct BX
 //   int IDSTART = 7*25;
-  int IDSTART = 8*6.25; // i.e. 4 samples ped+4 until max it was 6*25;
-  int WFLENGTH = 100*4; // step 1/4 ns in waveform
+  int IDSTART = 6*25;
+  int WFLENGTH = 208*4; // step 1/4 ns in waveform (200 ns = 2 x 16 samples x 6.5 ns)
   if (( IDSTART + NSAMPLES * NFREQ ) > 100 ) { // edm check this
     WFLENGTH = (IDSTART + NSAMPLES * NFREQ)*4 + 100;
   }
@@ -273,7 +273,7 @@ int main(int argc, char** argv) {
     // time window is nWF ns wide and is centered at BX0
     for (int ibx = 0; ibx < nBX; ibx++) {
       for (int iwf = 0; iwf < nWF; iwf++) {
-        double t = (BX0 - ibx) * 25. + iwf/4. - (100 / 2) + 25.;
+        double t = (BX0 - ibx) * 25. + iwf/4. - (WFLENGTH / 2.)/4. + 25.;
         double temp = pileup_signal.at(iwf);
         // adding the pu times the scale factor to the waveform
         pileup_signal.at(iwf) = temp + energyPU.at(ibx) * pSh.fShape(t) * puFactor;
@@ -282,7 +282,12 @@ int main(int argc, char** argv) {
     
     // Add signal to the waveform
     for (int iwf = 0; iwf < nWF; iwf++) {
-      pulse_signal.at(iwf) += signalTruth * pSh.fShape(iwf/4. - (100 / 2) + 25.);
+      double t = iwf/4. - (WFLENGTH / 2.)/4. + 25.;
+      pulse_signal.at(iwf) += signalTruth * pSh.fShape(t);
+      if (ievt==0) {
+        std::cout << "iwf = " << iwf << "  time(ns) = " << t << " ps = "
+                  << pSh.fShape(t) << "  signalTruth (GeV) = " << signalTruth << std::endl;
+      }
     }
     
     // Construct the digitized points
