@@ -37,6 +37,9 @@ def makeInputPSGraph():
     x = np.linspace(0,1000,n+1)
     y = pyf_total(x,ps_params)
 
+    # for pulse shape need normalized amplitude (1 at maximum)
+    y = y/np.max(y)
+    
     outFile = ROOT.TFile("data/EmptyFileIdealPSphase2.root","recreate")
     outFile.mkdir("PulseShape","PulseShape")
     outFile.cd("PulseShape")
