@@ -11,6 +11,8 @@ Create data
 
     ./CreateData        0                   11                  16           6.25       0           10                 1                 1      IdealPSphase2        0             0.5                0
 
+
+    ./CreateData   0        11    10     25     0     10    0         0      CRRC43     0    0.5       0
     ./CreateData -13        11    10     25     0     10    0         0      CRRC43     0    0.5       0
     ./CreateData -13        1     10     25     0     10    0         0      CRRC43     0    0.5       0
     
