@@ -34,10 +34,10 @@ int main(int argc, char** argv) {
   int nEventsTotal = 1000;
 
   // number of samples per impulse
-  int NSAMPLES = 10;
+  int NSAMPLES = 16;
 
   // number of samples per impulse
-  float NFREQ = 25;
+  float NFREQ = 6.25; // should be 6.25 ns, change the sampling of the PS to 1/4 ns and not 1 ns
 
   // number of pile up
   float nPU = 0;
@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
   int NBXTOTAL = 2800;
 
   // CRRC shaping time in ns. For QIE, set it to 1e-1
-  float pulse_tau = 43;
+  float pulse_tau = 1;
 
   // ADD WHAT THIS IS
   const float eta = 0.0;
@@ -103,9 +103,9 @@ int main(int argc, char** argv) {
   
   //---- fix the correct BX
 //   int IDSTART = 7*25;
-  int IDSTART = 6*25;
-  int WFLENGTH = 500*4; // step 1/4 ns in waveform
-  if (( IDSTART + NSAMPLES * NFREQ ) > 500 ) {
+  int IDSTART = 8*6.25; // i.e. 4 samples ped+4 until max it was 6*25;
+  int WFLENGTH = 100*4; // step 1/4 ns in waveform
+  if (( IDSTART + NSAMPLES * NFREQ ) > 100 ) { // edm check this
     WFLENGTH = (IDSTART + NSAMPLES * NFREQ)*4 + 100;
   }
   
@@ -139,6 +139,7 @@ int main(int argc, char** argv) {
   pSh.SetNFREQ(NFREQ);
   pSh.SetIDSTART(IDSTART);
   pSh.SetWFLENGTH(WFLENGTH);
+  pSh.SetTAU(pulse_tau);
   
   // make sure these inputs are what you really want
   //TFile *file = new TFile("data/EmptyFileCRRC43.root");
@@ -272,7 +273,7 @@ int main(int argc, char** argv) {
     // time window is nWF ns wide and is centered at BX0
     for (int ibx = 0; ibx < nBX; ibx++) {
       for (int iwf = 0; iwf < nWF; iwf++) {
-        double t = (BX0 - ibx) * 25. + iwf/4. - (500 / 2) + 25.;
+        double t = (BX0 - ibx) * 25. + iwf/4. - (100 / 2) + 25.;
         double temp = pileup_signal.at(iwf);
         // adding the pu times the scale factor to the waveform
         pileup_signal.at(iwf) = temp + energyPU.at(ibx) * pSh.fShape(t) * puFactor;
@@ -281,7 +282,7 @@ int main(int argc, char** argv) {
     
     // Add signal to the waveform
     for (int iwf = 0; iwf < nWF; iwf++) {
-      pulse_signal.at(iwf) += signalTruth * pSh.fShape(iwf/4. - (500 / 2) + 25.);
+      pulse_signal.at(iwf) += signalTruth * pSh.fShape(iwf/4. - (100 / 2) + 25.);
     }
     
     // Construct the digitized points

@@ -163,15 +163,7 @@ void Pulse::SetFNAMESHAPE ( std::string name ) {
 
 void Pulse::Init() {
   
-  std::cout << "doing init " << std::endl;
   _filePS = new TFile(_FNAMESHAPE.Data());
-  TTree *trPS = (TTree*)_filePS->Get("PulseShape/Tail");
-  std::cout << "tree = " << trPS << std::endl;
-  trPS->SetBranchAddress("timeMin",      &_tMin);
-  trPS->SetBranchAddress("expAmplitude", &_fPar0);
-  trPS->SetBranchAddress("expTime",      &_fPar1);
-  trPS->SetBranchAddress("tau",      &_TAU);
-  trPS->GetEntry(0);
   
   TFile* tempFile = new TFile("temp.root","RECREATE");
   _grPS = (TGraph*) ((TGraph*)_filePS->Get("PulseShape/grPulseShape")) -> Clone();
@@ -190,13 +182,7 @@ void Pulse::Init() {
 double Pulse::fShape(double x) {
   
   if ( _grPS !=0 && x > 0.) {
-    if (x<800.) {
-      //      return 1;
       return _grPS->Eval(x);
-    }
-    else {
-      return _fPar0 * exp( -x * _fPar1 );
-    }
   }
   else {
     return 0.;
