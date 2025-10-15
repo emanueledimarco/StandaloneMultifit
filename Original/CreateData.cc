@@ -36,6 +36,9 @@ int main(int argc, char** argv) {
   // number of samples per impulse
   int NSAMPLES = 16;
 
+  // number of pre-samples in impulse
+  int NPRESAMPLES = 6;
+  
   // number of samples per impulse
   float NFREQ = 6.25; // should be 6.25 ns, change the sampling of the PS to 1/4 ns and not 1 ns
 
@@ -102,12 +105,8 @@ int main(int argc, char** argv) {
   if (argc>=13) pedestal = atof(argv[12]);
   
   //---- fix the correct BX
-//   int IDSTART = 7*25;
-  int IDSTART = 6*25;
-  int WFLENGTH = 208*4; // step 1/4 ns in waveform (200 ns = 2 x 16 samples x 6.5 ns)
-  if (( IDSTART + NSAMPLES * NFREQ ) > 100 ) { // edm check this
-    WFLENGTH = (IDSTART + NSAMPLES * NFREQ)*4 + 100;
-  }
+  int WFLENGTH = 2 * 16 * 6.5 * 4; // = 208 ns = 832 units in steps of 1/4 ns in waveform 
+  int IDSTART = WFLENGTH / 4 / 2 - NPRESAMPLES * NFREQ; // position of the first sample in the pulse (in ns)
   
   
   //---- distortion of the 4th sample to simulate slew rate effect in pre-amp
@@ -119,6 +118,7 @@ int main(int argc, char** argv) {
   
   
   std::cout << " NSAMPLES = " << NSAMPLES << std::endl;
+  std::cout << " NPRESAMPLES = " << NPRESAMPLES << std::endl;
   std::cout << " NFREQ = " << NFREQ << std::endl;
   std::cout << " nPU = " << nPU << std::endl;
   std::cout << " signalAmplitude = " << signalAmplitude << std::endl;
@@ -273,7 +273,7 @@ int main(int argc, char** argv) {
     // time window is nWF ns wide and is centered at BX0
     for (int ibx = 0; ibx < nBX; ibx++) {
       for (int iwf = 0; iwf < nWF; iwf++) {
-        double t = (BX0 - ibx) * 25. + iwf/4. - (WFLENGTH / 2.)/4. + 25.;
+        double t = (BX0 - ibx) * 25. + iwf/4. - (WFLENGTH / 2.)/4.;
         double temp = pileup_signal.at(iwf);
         // adding the pu times the scale factor to the waveform
         pileup_signal.at(iwf) = temp + energyPU.at(ibx) * pSh.fShape(t) * puFactor;
@@ -282,7 +282,7 @@ int main(int argc, char** argv) {
     
     // Add signal to the waveform
     for (int iwf = 0; iwf < nWF; iwf++) {
-      double t = iwf/4. - (WFLENGTH / 2.)/4. + 25.;
+      double t = iwf/4. - (WFLENGTH / 2.)/4.;
       pulse_signal.at(iwf) += signalTruth * pSh.fShape(t);
       if (ievt==0) {
         std::cout << "iwf = " << iwf << "  time(ns) = " << t << " ps = "
