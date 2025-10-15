@@ -32,7 +32,27 @@ def pyf_total(t, p):
     # p[5] = R = relative weight of the decay times (R=1 means slow decay component is 0. In any case 0 <= R <=1)
     return p[0] * pyf_f(t,p[1],p[2]) * (p[5] * pyf_g(t,p[1],p[3]) + (1-p[5]) * pyf_h(t,p[1],p[4])) 
 
+def copy_dummyPUpdfs(sourceFile):
+    dirname = "PileupPDFs"
+    savdir = ROOT.gDirectory
+    targetdir = savdir.mkdir(dirname)
+
+    f = ROOT.TFile.Open(sourceFile)
+    f.cd(dirname)
+    sourcedir = ROOT.gDirectory
+    
+    keys = sourcedir.GetListOfKeys()
+    for k in keys:
+        obj = k.ReadObj()
+        print("\t histo ",obj.GetName())
+        targetdir.cd()
+        obj.Write()
+        del obj
+    savdir.SaveSelf(ROOT.kTRUE)
+    
 def makeInputPSGraph():
+
+    print("==> create the dummy pulse shape")
     n = 4000 # steps in 1/4 ns
     x = np.linspace(0,1000,n+1)
     y = pyf_total(x,ps_params)
@@ -53,10 +73,16 @@ def makeInputPSGraph():
     # c = ROOT.TCanvas("c","c",600,600)
     # gr.Draw("ALP")
     # c.SaveAs("pstest.pdf")
-    
     gr.Write()
-    outFile.Close()
+    outFile.cd("../")
+    print("pulse shape written.")
+    print("==> Now copying the input pileup PDFs...")
     
+    # now copy Pileup PDFs from the original file
+    copy_dummyPUpdfs("data/EmptyFileCRRC43.root")
+    
+    outFile.Close()
+    print("Done.")
 
 if __name__ == "__main__":
     makeInputPSGraph()
