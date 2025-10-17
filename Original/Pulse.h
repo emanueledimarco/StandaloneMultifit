@@ -19,7 +19,10 @@ const int NBXTOTAL = 2800;
 const int WFLENGTH  = 500*4;
 
 // number of samples per hit
-const int NSAMPLES   = 10;
+const int NSAMPLES   = 16;
+
+// number of pre-samples in impulse
+int NPRESAMPLES = 6;
 
 // distance between samples in 1ns steps
 const int NFREQ      = 25;
