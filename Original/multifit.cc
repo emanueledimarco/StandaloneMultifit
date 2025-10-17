@@ -40,20 +40,26 @@ void init()
 {
   initHist();
   
-  // intime sample is [9]
-  double pulseShapeTemplate[NSAMPLES+2];
-  for(int i=0; i<(NSAMPLES+2); i++){
+  pSh.SetFNAMESHAPE("data/EmptyFileIdealPSphase2.root");
+  pSh.Init();
+
+  // intime sample is [3]
+  const int nTemplateBins = 9;
+  double pulseShapeTemplate[nTemplateBins];
+  for(int i=0; i<nTemplateBins; i++){
     
     //     double x = double( IDSTART + NFREQ * (i + 3) - WFLENGTH / 2);
-    double x = double( IDSTART + NFREQ * (i + NPRESAMPLES) - 208 / 2); //----> 208 ns is fixed!  
+    double x = double( NFREQ * i );
     
     pulseShapeTemplate[i] = pSh.fShape(x);
-    std::cout << " >>  pulseShapeTemplate[" << i << "] " <<  pulseShapeTemplate[i] << " at x = " << x << std::endl;
     
   }
   //  for(int i=0; i<(NSAMPLES+2); i++) pulseShapeTemplate[i] /= pulseShapeTemplate[2];
-  for (int i=0; i<(NSAMPLES+2); ++i) fullpulse(i+7) = pulseShapeTemplate[i];
-  
+  // 9 is the number of samples sufficient to cover the part non 0 of the pulse template
+  // in-time is on the sample [3] => distance from -8 to 3 is 11
+  for (int i=0; i<nTemplateBins; ++i) fullpulse(i+11) = pulseShapeTemplate[i];
+    
+  std::cout << " initialized fullpulse = " << fullpulse << std::endl;
   
   for (int i=0; i<NSAMPLES; ++i) {
     for (int j=0; j<NSAMPLES; ++j) {
@@ -61,12 +67,12 @@ void init()
       noisecor(i,j) = pSh.corr(vidx);
     }
   }
-  
+
+  std::cout << " initialized noisecor = " << noisecor << std::endl;
+
   int activeBXs[] = { -8, -7, -6, -5, -4, -3, -2, -1,  0,  1,  2,  3,  4, 5, 6, 7 };
-  activeBX.resize(16);
-  for (unsigned int ibx=0; ibx<16; ++ibx) {
-    activeBX.coeffRef(ibx) = activeBXs[ibx];
-  } 
+  activeBX.resize(NSAMPLES);
+  for (unsigned int ibx=0; ibx<NSAMPLES; ++ibx) activeBX.coeffRef(ibx) = activeBXs[ibx];
   //  activeBX.resize(1);
   //  activeBX.coeffRef(0) = 0;
 }
@@ -91,7 +97,7 @@ void run(std::string inputFile, std::string outFile)
   
   TFile *fout;
   
-  float time_shift = 13. ; //---- default is 13
+  float time_shift = 0. ;
   float pedestal_shift = 0.;
   
   

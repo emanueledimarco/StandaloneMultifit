@@ -25,11 +25,11 @@ const int NSAMPLES   = 16;
 int NPRESAMPLES = 6;
 
 // distance between samples in 1ns steps
-const int NFREQ      = 25;
+const float NFREQ      = 6.25;
 
 // position of a 1st sample inside waveform
 // const int IDSTART    = 180+13;
-const int IDSTART    = 150+13;
+const int IDSTART    = 104;
 // const int IDSTART    = 180;
 // 
 
@@ -110,11 +110,11 @@ Pulse::Pulse()
 {
   //---- default
   SetFNAMESHAPE("data/EmptyFileCRRC43.root");
-  SetNSAMPLES(10);
-  SetNFREQ(25);
-  SetIDSTART(180);
+  SetNSAMPLES(16);
+  SetNFREQ(6.25);
+  SetIDSTART(104);
   SetTAU(43.0);
-  SetWFLENGTH(500);
+  SetWFLENGTH(208);
   
   _grPS = 0x0;
 }
