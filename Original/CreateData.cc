@@ -284,10 +284,6 @@ int main(int argc, char** argv) {
     for (int iwf = 0; iwf < nWF; iwf++) {
       double t = iwf/4. - (WFLENGTH / 2.)/4. - NPRESAMPLES * NFREQ;
       pulse_signal.at(iwf) += signalTruth * pSh.fShape(t);
-      if (ievt==0) {
-        std::cout << "iwf = " << iwf << "  absolute t(ns) =  " << iwf/4. << "  time from PS start (ns) = " << t << " ps = "
-                  << pSh.fShape(t) << std::endl;
-      }
     }
     
     // Construct the digitized points

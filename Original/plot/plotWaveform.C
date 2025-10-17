@@ -34,7 +34,8 @@ void plotPulse (std::string nameInputFile = "output.root", int nEvent = 10){
  TTree* tree = (TTree*) file->Get("Samples");
   
  int    nWF;
- std::vector<double>* pulse_signal    = new std::vector<double>;
+ std::vector<double>* pulse_signal     = new std::vector<double>;
+ std::vector<double>* pileup_signal    = new std::vector<double>;
  std::vector<double>* samples     = new std::vector<double>;
  std::vector<double>* samples_noise = new std::vector<double>;
  
@@ -42,6 +43,7 @@ void plotPulse (std::string nameInputFile = "output.root", int nEvent = 10){
  
  tree->SetBranchAddress("nWF",      &nWF);
  tree->SetBranchAddress("pulse_signal", &pulse_signal);
+ tree->SetBranchAddress("pileup_signal", &pileup_signal);
  tree->SetBranchAddress("samples",   &samples);
  tree->SetBranchAddress("samples_noise",   &samples_noise);
  tree->SetBranchAddress("nFreq",   &NFREQ);
@@ -61,7 +63,18 @@ void plotPulse (std::string nameInputFile = "output.root", int nEvent = 10){
  grPulse_signal->SetMarkerColor(kRed);
  grPulse_signal->SetLineColor(kRed);
  grPulse_signal->SetLineWidth(1);
- 
+
+ TGraph *grPulse_pileup = new TGraph();
+ for(int i=0; i<nWF/2; i++){
+   grPulse_pileup->SetPoint(i, i/4., pileup_signal->at(nWF/2+i));
+ }
+
+ grPulse_pileup->SetMarkerSize(0.2);
+ grPulse_pileup->SetMarkerStyle(kFullDiamond);
+ grPulse_pileup->SetMarkerColor(kOrange+4);
+ grPulse_pileup->SetLineColor(kOrange+4);
+ grPulse_pileup->SetLineWidth(1);
+
  TGraph *grPulse_noise = new TGraph();
  for(int i=0; i<(int)samples->size(); i++){
    grPulse_noise->SetPoint(i, i * NFREQ, samples_noise->at(i));
@@ -88,6 +101,7 @@ void plotPulse (std::string nameInputFile = "output.root", int nEvent = 10){
  grPulse_signal->GetXaxis()->SetRangeUser(0, (samples->size()-1) * NFREQ);
  grPulse_signal->GetYaxis()->SetRangeUser(-0.5, TMath::MaxElement(grPulse->GetN(),grPulse->GetY())*1.2);
  grPulse_signal->Draw("APL");
+ grPulse_pileup->Draw("PL");
  grPulse_noise->Draw("PL");
  grPulse->Draw("LP");
  
@@ -95,6 +109,7 @@ void plotPulse (std::string nameInputFile = "output.root", int nEvent = 10){
  TLegend* leg = new TLegend(0.91,0.90,0.99,0.99);
 
  leg->AddEntry(grPulse_signal,"signal input","p");
+ leg->AddEntry(grPulse_pileup,"pileup sum","p");
  leg->AddEntry(grPulse_noise,"noise input","p");
  leg->AddEntry(grPulse,"total","p");
  leg->Draw();
