@@ -13,7 +13,6 @@
 
 void plotPulse (std::string nameInputFile = "output.root", int nEvent = 10){
 
-  std::cout << "ccc = " << std::endl;
  Color_t* color = new Color_t [200];
  color[0] = kAzure; //kRed ;
  color[1] = kAzure + 10 ;
@@ -48,69 +47,59 @@ void plotPulse (std::string nameInputFile = "output.root", int nEvent = 10){
  tree->SetBranchAddress("nFreq",   &NFREQ);
  
  tree->GetEntry(nEvent);
- std::cout << " NFREQ = " << NFREQ << std::endl;
- std::cout << " nWF = " << nWF << std::endl;
- 
- TCanvas* ccpulse_signal = new TCanvas ("ccpulse_signal","",800,600);
- TGraph *gr = new TGraph();
- TGraph *gr_sampling = new TGraph();
- for(int i=0; i<nWF; i++){
-  gr->SetPoint(i, i/4., pulse_signal->at(i));
- }
- gr->Draw("AL"); 
- gr->SetLineColor(kMagenta);
- gr->SetLineWidth(2);
- gr->GetXaxis()->SetTitle("time [ns]");
- 
- gr_sampling->Draw("P");
- gr_sampling->SetMarkerStyle(4);
- gr_sampling->SetMarkerColor(kBlue);
- 
- ccpulse_signal->SetGrid();
- 
+
  TCanvas* ccPulse = new TCanvas ("ccPulse","",800,600);
+ ccPulse->SetGrid();
+
+ TGraph *grPulse_signal = new TGraph();
+ for(int i=0; i<nWF/2; i++){
+   grPulse_signal->SetPoint(i, i/4., pulse_signal->at(nWF/2+i));
+ }
+
+ grPulse_signal->SetMarkerSize(0.2);
+ grPulse_signal->SetMarkerStyle(kFullCircle);
+ grPulse_signal->SetMarkerColor(kRed);
+ grPulse_signal->SetLineColor(kRed);
+ grPulse_signal->SetLineWidth(1);
  
  TGraph *grPulse_noise = new TGraph();
- for(int i=0; i<samples->size(); i++){
-   grPulse_noise->SetPoint(i, i * NFREQ , samples_noise->at(i));
+ for(int i=0; i<(int)samples->size(); i++){
+   grPulse_noise->SetPoint(i, i * NFREQ, samples_noise->at(i));
  }
- grPulse_noise->SetMarkerSize(2);
- grPulse_noise->SetMarkerStyle(21);
+ grPulse_noise->SetMarkerSize(1);
+ grPulse_noise->SetMarkerStyle(kFullCircle);
  grPulse_noise->SetMarkerColor(kGray);
  grPulse_noise->SetLineColor(kGray);
  grPulse_noise->SetLineStyle(3);
- 
- 
+  
  
  TGraph *grPulse = new TGraph();
- for(int i=0; i<samples->size(); i++){
-   grPulse->SetPoint(i, i * NFREQ , samples->at(i));
+ for(int i=0; i<(int)samples->size(); i++){
+   grPulse->SetPoint(i, i * NFREQ, samples->at(i));
  }
- grPulse->SetMarkerSize(2);
- grPulse->SetMarkerStyle(21);
- grPulse->SetMarkerColor(kRed);
+ grPulse->SetMarkerSize(1);
+ grPulse->SetMarkerStyle(kFullCircle);
+ grPulse->SetMarkerColor(kBlack);
  grPulse->SetLineStyle(3);
- grPulse->SetLineColor(kRed);
+ grPulse->SetLineColor(kBlack);
  grPulse->SetLineWidth(2);
- grPulse->Draw("ALP");
- grPulse->GetXaxis()->SetTitle("time [ns]");
- 
- grPulse->Draw("ALP");
- 
- grPulse->GetXaxis()->SetTitle("time [ns]");
- 
- grPulse_noise->Draw("PL");
- 
- TLegend* leg = new TLegend(0.91,0.10,0.99,0.90);
 
+ grPulse_signal->GetXaxis()->SetTitle("time [ns]");
+ grPulse_signal->GetXaxis()->SetRangeUser(0, (samples->size()-1) * NFREQ);
+ grPulse_signal->GetYaxis()->SetRangeUser(-0.5, TMath::MaxElement(grPulse->GetN(),grPulse->GetY())*1.2);
+ grPulse_signal->Draw("APL");
+ grPulse_noise->Draw("PL");
+ grPulse->Draw("LP");
+ 
+ 
+ TLegend* leg = new TLegend(0.91,0.90,0.99,0.99);
+
+ leg->AddEntry(grPulse_signal,"signal input","p");
  leg->AddEntry(grPulse_noise,"noise input","p");
- 
- 
- 
+ leg->AddEntry(grPulse,"total","p");
  leg->Draw();
  
- 
- 
+ ccPulse->SaveAs("ccpulse.pdf");
  
 }
 

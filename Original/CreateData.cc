@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
   float pulse_tau = 1;
 
   // ADD WHAT THIS IS
-  const float eta = 0.0;
+  const float eta = 1.0;
   
   // pedestal shift in GeV
   float pedestal = 0.0;
@@ -106,7 +106,7 @@ int main(int argc, char** argv) {
   
   //---- fix the correct BX
   int WFLENGTH = 2 * 16 * 6.5 * 4; // = 208 ns = 832 units in steps of 1/4 ns in waveform 
-  int IDSTART = WFLENGTH / 4 / 2 - NPRESAMPLES * NFREQ; // position of the first sample in the pulse (in ns)
+  int IDSTART = WFLENGTH / 4 / 2; // position of the first sample in the pulse (in ns)
   
   
   //---- distortion of the 4th sample to simulate slew rate effect in pre-amp
@@ -273,7 +273,7 @@ int main(int argc, char** argv) {
     // time window is nWF ns wide and is centered at BX0
     for (int ibx = 0; ibx < nBX; ibx++) {
       for (int iwf = 0; iwf < nWF; iwf++) {
-        double t = (BX0 - ibx) * 25. + iwf/4. - (WFLENGTH / 2.)/4.;
+        double t = (BX0 - ibx) * 25. + iwf/4. - (WFLENGTH / 2.)/4. - NPRESAMPLES * NFREQ;
         double temp = pileup_signal.at(iwf);
         // adding the pu times the scale factor to the waveform
         pileup_signal.at(iwf) = temp + energyPU.at(ibx) * pSh.fShape(t) * puFactor;
@@ -282,11 +282,11 @@ int main(int argc, char** argv) {
     
     // Add signal to the waveform
     for (int iwf = 0; iwf < nWF; iwf++) {
-      double t = iwf/4. - (WFLENGTH / 2.)/4.;
+      double t = iwf/4. - (WFLENGTH / 2.)/4. - NPRESAMPLES * NFREQ;
       pulse_signal.at(iwf) += signalTruth * pSh.fShape(t);
       if (ievt==0) {
-        std::cout << "iwf = " << iwf << "  time(ns) = " << t << " ps = "
-                  << pSh.fShape(t) << "  signalTruth (GeV) = " << signalTruth << std::endl;
+        std::cout << "iwf = " << iwf << "  absolute t(ns) =  " << iwf/4. << "  time from PS start (ns) = " << t << " ps = "
+                  << pSh.fShape(t) << std::endl;
       }
     }
     
