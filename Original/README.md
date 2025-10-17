@@ -19,7 +19,8 @@ Create data
 Fit
 ====
 
-    g++ -o simple.multifitsimple.multifit.cc PulseChiSqSNNLS.cc -std=c++11 `root-config --cflags --glibs`
+     g++ -o multifit multifit.cc PulseChiSqSNNLS.cc -I /opt/homebrew/Cellar/eigen/3.4.1/include/eigen3/ -std=c++11 `root-config --cflags --glibs` (compile on Mac)
+     g++ -o multifit multifit.cc PulseChiSqSNNLS.cc -std=c++11 `root-config --cflags --glibs` (compile on linux)
 
                    input     output    NSAMPLES   NFREQ    time-shift (13 has to go for 0)      pedestal-shift
     ./simple.multifit  input/mysample_11_-13.000_0.000_10_25.00_10.00_0.00_0.000_0.00_CRRC43_0.00.root       output/mysample_11_-13.000_0.000_10_25.00_10.00_0.00_0.000_0.00_CRRC43_0.00.root         10            25        13        0.0
