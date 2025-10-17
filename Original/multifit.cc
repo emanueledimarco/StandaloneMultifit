@@ -40,15 +40,12 @@ void init()
 {
   initHist();
   
-  // intime sample is [2]
+  // intime sample is [9]
   double pulseShapeTemplate[NSAMPLES+2];
   for(int i=0; i<(NSAMPLES+2); i++){
     
-//     iwf/4. - (500 / 2) + 25. 
-//     double x = double( IDSTART + NFREQ * (i + 3) - WFLENGTH / 2);
-//     double x = double( IDSTART + NFREQ * (i + 3) - WFLENGTH / 2);
-    double x = double( IDSTART + NFREQ * (i + 3) - 500 / 2); //----> 500 ns is fixed!  
-    //     x = double( IDSTART + NFREQ * i + 3*25. - 500 / 2. );  //----> 500 ns is fixed!  
+    //     double x = double( IDSTART + NFREQ * (i + 3) - WFLENGTH / 2);
+    double x = double( IDSTART + NFREQ * (i + NPRESAMPLES) - 208 / 2); //----> 208 ns is fixed!  
     
     pulseShapeTemplate[i] = pSh.fShape(x);
     std::cout << " >>  pulseShapeTemplate[" << i << "] " <<  pulseShapeTemplate[i] << " at x = " << x << std::endl;
@@ -65,9 +62,9 @@ void init()
     }
   }
   
-  int activeBXs[] = { -5, -4, -3, -2, -1,  0,  1,  2,  3,  4 };
-  activeBX.resize(10);
-  for (unsigned int ibx=0; ibx<10; ++ibx) {
+  int activeBXs[] = { -8, -7, -6, -5, -4, -3, -2, -1,  0,  1,  2,  3,  4, 5, 6, 7 };
+  activeBX.resize(16);
+  for (unsigned int ibx=0; ibx<16; ++ibx) {
     activeBX.coeffRef(ibx) = activeBXs[ibx];
   } 
   //  activeBX.resize(1);
