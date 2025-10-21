@@ -37,19 +37,19 @@ void init()
   pSh.Init();
 
   // intime sample is [3] // edm
+  std::cout << "NFREQ = " << NFREQ << std::endl;
   for(int i=0; i<nTemplateBins; i++){
     
     //     double x = double( IDSTART + NFREQ * (i + 3) - WFLENGTH / 2);
-    double x = double( NFREQ * i );
-    
+    double x = double( NFREQ * i );    
     pulseShapeTemplate[i] = pSh.fShape(x);
     
   }
   //  for(int i=0; i<(NSAMPLES+2); i++) pulseShapeTemplate[i] /= pulseShapeTemplate[2];
   // 9 is the number of samples sufficient to cover the part non 0 of the pulse template
-  // distance from min early BX (-4) to max late BX (+2) = 4 + 16 + 2 = 22 (fullpulse length)
+  // distance from min early BX (-4) to max late BX (+2) = 4*NFREQ + 16 + 2*NFREQ = 40 (NFREQ=4, fullpulse length)
   // shift from min early BX (-4) to first pulse sample (5) = 5 + 4 = 0
-  for (int i=0; i<nTemplateBins; ++i) fullpulse(i+8) = pulseShapeTemplate[i];
+  for (int i=0; i<nTemplateBins; ++i) fullpulse(i+14) = pulseShapeTemplate[i];
     
   std::cout << " initialized fullpulse = " << std::endl << fullpulse << std::endl;
   
@@ -111,11 +111,12 @@ void run(std::string inputFile, std::string outFile)
 
   double pedval = 0.;
   double pedrms = 0.05;
-  int maxshift = NPRESAMPLES + *max_element(activeBX.begin(),activeBX.end());  
+  int maxshift = NPRESAMPLES + (*max_element(activeBX.begin(),activeBX.end())) * int(25./NFREQ);
   int minBX = *min_element(activeBX.begin(),activeBX.end());
   
   PulseChiSqSNNLS pulsefunc;
   pulsefunc.setNPresamples(NPRESAMPLES);
+  pulsefunc.setNFREQ(NFREQ);
   pulsefunc.setMaxShift(maxshift);
   pulsefunc.disableErrorCalculation();
 
@@ -136,10 +137,10 @@ void run(std::string inputFile, std::string outFile)
       }
     }
 
-    std::cout << " ipulseintime = " << ipulseintime << std::endl;
-    std::cout << " pulsefunc.X() = " << std::endl << pulsefunc.X() << std::endl;
-    std::cout << " status = " << status << std::endl;
-    std::cout << " chi2 = " << chisq << std::endl;
+    // std::cout << " ipulseintime = " << ipulseintime << std::endl;
+    // std::cout << " pulsefunc.X() = " << std::endl << pulsefunc.X() << std::endl;
+    // std::cout << " status = " << status << std::endl;
+    // std::cout << " chi2 = " << chisq << std::endl;
     
     double aMax = status ? pulsefunc.X()[ipulseintime] : 0.;
     //  double aErr = status ? pulsefunc.Errors()[ipulseintime] : 0.;

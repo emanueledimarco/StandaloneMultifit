@@ -157,7 +157,10 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
   for(int i=0; i<(int)samples->size(); i++){
     float templateVal = i < 9 ? pulseShapeTemplate[i] : 0;
     grPulseReco[iBx]->SetPoint(i, i*NFREQ + activeBXs->at(iBx)*25 + 6*NFREQ, templateVal * samplesReco->at(iBx));
-    totalRecoSpectrum.at(i) += templateVal * samplesReco->at(iBx);
+    int iReco = i + activeBXs->at(iBx) * int(25./NFREQ) + 6;
+    if(iReco >= 0 && iReco < (int)samples->size()) {
+      totalRecoSpectrum.at(iReco) += templateVal * samplesReco->at(iBx);
+    }
   }
   grPulseReco[iBx]->SetMarkerColor(color[iBx]);
   grPulseReco[iBx]->SetLineColor(color[iBx]);
@@ -188,6 +191,8 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
    grPulseReco[iBx]->Draw("PC");
  }
 
+ grPulse->SetMarkerStyle(kFullTriangleUp);
+ grPulse->SetMarkerColor(kRed);
  grPulse->Draw("PL");
  
  leg2->Draw();

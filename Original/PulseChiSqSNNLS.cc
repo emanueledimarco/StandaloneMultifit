@@ -35,8 +35,8 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples, const SampleMatrix &sam
   //initialize pulse template matrix
   for (unsigned int ipulse=0; ipulse<npulse; ++ipulse) {
     int bx = _bxs.coeff(ipulse);
-    int firstsamplet = std::max(0,bx + _npresamples);
-    int offset = _maxshift-_npresamples-bx;
+    int firstsamplet = std::max(0,bx * int(25./_NFREQ) + _npresamples);
+    int offset = _maxshift - _npresamples - bx*int(25./_NFREQ);
     _pulsemat.col(ipulse) = fullpulse.segment<SampleVector::RowsAtCompileTime>(offset);
   }
 
@@ -65,7 +65,7 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples, const SampleMatrix &sam
   unsigned int ipulseintime = 0;
 //   std::cout << " npulse = " << npulse << std::endl;
   for (unsigned int ipulse=0; ipulse<npulse; ++ipulse) {
-//     std::cout << " _bxs.coeff( " << ipulse << "::" << npulse << " ) = " << _bxs.coeff(ipulse) << std::endl;
+//     std::cout << " _bxs.coeff( " << ipulse << "::" << npuls3e << " ) = " << _bxs.coeff(ipulse) << std::endl;
     if (_bxs.coeff(ipulse)==0) {
       ipulseintime = ipulse;
       foundintime = true;
@@ -188,8 +188,8 @@ bool PulseChiSqSNNLS::updateCov(const SampleMatrix &samplecor, double pederr, co
   for (unsigned int ipulse=0; ipulse<npulse; ++ipulse) {
     if (_ampvec.coeff(ipulse)==0.) continue;
     int bx = _bxs.coeff(ipulse);
-    int firstsamplet = std::max(0,bx + _npresamples);
-    int offset = _maxshift-_npresamples-bx;
+    int firstsamplet = std::max(0,bx * int(25./_NFREQ) + _npresamples);
+    int offset = _maxshift - _npresamples - bx*int(25./_NFREQ);
     
     double ampsq = _ampvec.coeff(ipulse)*_ampvec.coeff(ipulse);
     

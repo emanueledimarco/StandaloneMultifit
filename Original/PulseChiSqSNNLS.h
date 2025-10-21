@@ -27,6 +27,7 @@ public:
   void disableErrorCalculation() { _computeErrors = false; }
   void setNPresamples(int samples) { _npresamples = samples; }
   void setMaxShift(int maxshift) { _maxshift = maxshift; }
+  void setNFREQ   ( float NFREQ )  { _NFREQ = NFREQ; }
   
 protected:
   
@@ -54,6 +55,9 @@ protected:
   bool _computeErrors;
   int _npresamples;
   int _maxshift;
+
+  float _NFREQ;
+  
 };
 
 #endif
