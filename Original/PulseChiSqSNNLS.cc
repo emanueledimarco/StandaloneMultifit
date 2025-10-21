@@ -5,7 +5,9 @@
 
 PulseChiSqSNNLS::PulseChiSqSNNLS() :
 _chisq(0.),
-_computeErrors(true)
+_computeErrors(true),
+_npresamples(3),
+_maxshift(7)
 {
   
   Eigen::initParallel();
@@ -33,21 +35,22 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples, const SampleMatrix &sam
   //initialize pulse template matrix
   for (unsigned int ipulse=0; ipulse<npulse; ++ipulse) {
     int bx = _bxs.coeff(ipulse);
-    int firstsamplet = std::max(0,bx + 3);
-    int offset = 7-3-bx;
-    
-    const unsigned int nsamplepulse = nsample-firstsamplet;
-    _pulsemat.col(ipulse).segment(firstsamplet,nsamplepulse) = fullpulse.segment(firstsamplet+offset,nsamplepulse);
+    int firstsamplet = std::max(0,bx + _npresamples);
+    int offset = _maxshift-_npresamples-bx;
+    _pulsemat.col(ipulse) = fullpulse.segment<SampleVector::RowsAtCompileTime>(offset);
   }
+
+  //  std::cout << "Updated pulsemat = " << std::endl << _pulsemat << std::endl;
+
   
   //do the actual fit
   bool status = Minimize(samplecor,pederr,fullpulsecov);
   _ampvecmin = _ampvec;
   
-//   std::cout << " _sampvec = " << _sampvec << std::endl;
-//   std::cout << " bxs = " << bxs << std::endl;
-//   std::cout << " fullpulse = " << fullpulse << std::endl;
-//   std::cout << " _ampvecmin = " << _ampvecmin << std::endl;
+  // std::cout << " _sampvec = " << _sampvec << std::endl;
+  // std::cout << " bxs = " << bxs << std::endl;
+  // std::cout << " fullpulse = " << fullpulse << std::endl;
+  // std::cout << " _ampvecmin = " << _ampvecmin << std::endl;
   
   _bxsmin = _bxs;
   
@@ -146,11 +149,11 @@ bool PulseChiSqSNNLS::Minimize(const SampleMatrix &samplecor, double pederr, con
   bool status = false;
   while (true) {    
     
-//     std::cout << " iter =  " << iter << " :: " << maxiter << std::endl;
+    //    std::cout << " iter =  " << iter << " :: " << maxiter << std::endl;
     
     if (iter>=maxiter) {
-      //      edm::LogWarning("PulseChiSqSNNLS::Minimize") << "Max Iterations reached at iter " << iter <<  std::endl;
-//       std::cout << " maxiter =  " << iter << " :: " << maxiter << std::endl;
+      std::cout << "PulseChiSqSNNLS::Minimize ===> " << "Max Iterations reached at iter " << iter <<  std::endl;
+      std::cout << " maxiter =  " << iter << " :: " << maxiter << std::endl;
       break;
     }    
     
@@ -175,7 +178,7 @@ bool PulseChiSqSNNLS::Minimize(const SampleMatrix &samplecor, double pederr, con
 
 bool PulseChiSqSNNLS::updateCov(const SampleMatrix &samplecor, double pederr, const FullSampleMatrix &fullpulsecov) {
   
-//   std::cout << " updateCov " << std::endl;
+  //  std::cout << " updateCov " << std::endl;
   
   const unsigned int nsample = SampleVector::RowsAtCompileTime;
   const unsigned int npulse = _bxs.rows();
@@ -185,8 +188,8 @@ bool PulseChiSqSNNLS::updateCov(const SampleMatrix &samplecor, double pederr, co
   for (unsigned int ipulse=0; ipulse<npulse; ++ipulse) {
     if (_ampvec.coeff(ipulse)==0.) continue;
     int bx = _bxs.coeff(ipulse);
-    int firstsamplet = std::max(0,bx + 3);
-    int offset = 7-3-bx;
+    int firstsamplet = std::max(0,bx + _npresamples);
+    int offset = _maxshift-_npresamples-bx;
     
     double ampsq = _ampvec.coeff(ipulse)*_ampvec.coeff(ipulse);
     
@@ -194,11 +197,11 @@ bool PulseChiSqSNNLS::updateCov(const SampleMatrix &samplecor, double pederr, co
     _invcov.block(firstsamplet,firstsamplet,nsamplepulse,nsamplepulse).triangularView<Eigen::Lower>() += ampsq*fullpulsecov.block(firstsamplet+offset,firstsamplet+offset,nsamplepulse,nsamplepulse);    
   }
   
-//   std::cout << " updateCov " << " here "  << std::endl;
+  //  std::cout << " updateCov " << " here "  << std::endl;
   
   _covdecomp.compute(_invcov);
   
-//   std::cout << " updateCov " << " done "  << std::endl;
+  //  std::cout << " updateCov " << " done "  << std::endl;
   
   bool status = true;
   return status;

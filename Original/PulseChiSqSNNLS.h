@@ -25,6 +25,8 @@ public:
   
   double ChiSq() const { return _chisq; }
   void disableErrorCalculation() { _computeErrors = false; }
+  void setNPresamples(int samples) { _npresamples = samples; }
+  void setMaxShift(int maxshift) { _maxshift = maxshift; }
   
 protected:
   
@@ -50,6 +52,8 @@ protected:
   
   double _chisq;
   bool _computeErrors;
+  int _npresamples;
+  int _maxshift;
 };
 
 #endif
