@@ -119,7 +119,7 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
  grPulse->Draw("LP");
  
  
- TLegend* leg = new TLegend(0.91,0.90,0.99,0.99);
+ TLegend* leg = new TLegend(0.91,0.10,0.99,0.90);
 
  leg->AddEntry(grPulse_signal,"signal input","p");
  leg->AddEntry(grPulse_pileup,"pileup sum","p");
@@ -137,11 +137,11 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
  TGraph *grPulseRecoAll = new TGraph();
  const int nReco = (int)samplesReco->size();
  std::vector<TGraph*> grPulseReco;
- std::cout << " samplesReco->size() = " << samplesReco->size() << std::endl;
- std::cout << " activeBXs->size() = " << activeBXs->size() << std::endl;
- std::cout << " nTemplateBins = " << nTemplateBins << std::endl;
- std::cout << " samples->size() = " << samples->size() << std::endl;
- std::cout << " NFREQ = " << NFREQ << std::endl;
+ /* std::cout << " samplesReco->size() = " << samplesReco->size() << std::endl; */
+ /* std::cout << " activeBXs->size() = " << activeBXs->size() << std::endl; */
+ /* std::cout << " nTemplateBins = " << nTemplateBins << std::endl; */
+ /* std::cout << " samples->size() = " << samples->size() << std::endl; */
+ /* std::cout << " NFREQ = " << NFREQ << std::endl; */
  
  TLegend* leg2 = new TLegend(0.91,0.10,0.99,0.90);
  
@@ -155,18 +155,9 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
   /* std::cout << " Energy = " << samplesReco->at(iBx) << std::endl; */
   grPulseReco.push_back(new TGraph());
   for(int i=0; i<(int)samples->size(); i++){
-    // std::cout << "  >> i = " << i << std::endl;
-    // std::cout << "  >> activeBXs->at(iBx) = " << activeBXs->at(iBx) << std::endl;
     float templateVal = i < 9 ? pulseShapeTemplate[i] : 0;
-    // std::cout << " pulseShapeTemplate[" << i << "] = " << templateVal << std::endl;
-    int iReco = i + activeBXs->at(iBx) + 6;
-    
-    grPulseReco[iBx]->SetPoint(i, iReco * NFREQ, templateVal * samplesReco->at(iBx));
-  
-    if ( iReco >= 0 && iReco<(int)samples->size() ) {
-      totalRecoSpectrum.at(iReco) += templateVal * samplesReco->at(iBx);
-   } 
-   
+    grPulseReco[iBx]->SetPoint(i, i*NFREQ + activeBXs->at(iBx)*25 + 6*NFREQ, templateVal * samplesReco->at(iBx));
+    totalRecoSpectrum.at(i) += templateVal * samplesReco->at(iBx);
   }
   grPulseReco[iBx]->SetMarkerColor(color[iBx]);
   grPulseReco[iBx]->SetLineColor(color[iBx]);
@@ -178,7 +169,7 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
 
  
  for(int i=0; i<(int)samples->size(); i++){
-   grPulseRecoAll->SetPoint(i, i * NFREQ, totalRecoSpectrum.at(i));
+   grPulseRecoAll->SetPoint(i, i*NFREQ, totalRecoSpectrum.at(i));
  }
 
  grPulseRecoAll->SetMarkerColor(kBlack);
@@ -187,9 +178,9 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
  grPulseRecoAll->SetMarkerSize(1.5);
  grPulseRecoAll->SetMarkerStyle(kFullCircle);
  leg2->AddEntry(grPulseRecoAll,"Total","p");
- grPulse_noise->GetXaxis()->SetTitle("time [ns]");
- grPulse_noise->GetXaxis()->SetRangeUser(0, (samples->size()-1) * NFREQ);
- grPulse_noise->GetYaxis()->SetRangeUser(-0.5, TMath::MaxElement(grPulseRecoAll->GetN(),grPulseRecoAll->GetY())*1.2);
+ grPulseRecoAll->GetXaxis()->SetTitle("time [ns]");
+ grPulseRecoAll->GetXaxis()->SetRangeUser(0, samples->size() * NFREQ);
+ grPulseRecoAll->GetYaxis()->SetRangeUser(-0.5, TMath::MaxElement(grPulseRecoAll->GetN(),grPulseRecoAll->GetY())*1.2);
 
  grPulseRecoAll->Draw("APC");
  grPulse_noise->Draw("PC");
