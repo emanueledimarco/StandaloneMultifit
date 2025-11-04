@@ -150,6 +150,7 @@ void run(std::string inputFile, std::string outFile)
     for (unsigned int ipulse=0; ipulse<pulsefunc.BXs().rows(); ++ipulse) {
       if (status) {
 	samplesReco[ (int(pulsefunc.BXs().coeff(ipulse))) - minBX] = pulsefunc.X()[ ipulse ];
+	// std::cout << "\t ipulse = " << ipulse << " idx = " << (int(pulsefunc.BXs().coeff(ipulse))) - minBX << "  ampli = " << pulsefunc.X()[ ipulse ] << std::endl;
       }
       else {
 	samplesReco[ipulse] = -1;
