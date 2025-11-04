@@ -18,19 +18,109 @@ PulseChiSqSNNLS::~PulseChiSqSNNLS() {
   
 }
 
-bool PulseChiSqSNNLS::DoFit(const SampleVector &samples, const SampleMatrix &samplecor, double pederr, const BXVector &bxs, const FullSampleVector &fullpulse, const FullSampleMatrix &fullpulsecov) {
+void eigen_solve_submatrix(PulseMatrix &mat, PulseVector &invec, PulseVector &outvec, unsigned NP) {
+  using namespace Eigen;
+  switch (NP) {  // pulse matrix is always square.
+    case 10: {
+      Matrix<double, 10, 10> temp = mat.topLeftCorner<10, 10>();
+      outvec.head<10>() = temp.ldlt().solve(invec.head<10>());
+    } break;
+    case 9: {
+      Matrix<double, 9, 9> temp = mat.topLeftCorner<9, 9>();
+      outvec.head<9>() = temp.ldlt().solve(invec.head<9>());
+    } break;
+    case 8: {
+      Matrix<double, 8, 8> temp = mat.topLeftCorner<8, 8>();
+      outvec.head<8>() = temp.ldlt().solve(invec.head<8>());
+    } break;
+    case 7: {
+      Matrix<double, 7, 7> temp = mat.topLeftCorner<7, 7>();
+      outvec.head<7>() = temp.ldlt().solve(invec.head<7>());
+    } break;
+    case 6: {
+      Matrix<double, 6, 6> temp = mat.topLeftCorner<6, 6>();
+      outvec.head<6>() = temp.ldlt().solve(invec.head<6>());
+    } break;
+    case 5: {
+      Matrix<double, 5, 5> temp = mat.topLeftCorner<5, 5>();
+      outvec.head<5>() = temp.ldlt().solve(invec.head<5>());
+    } break;
+    case 4: {
+      Matrix<double, 4, 4> temp = mat.topLeftCorner<4, 4>();
+      outvec.head<4>() = temp.ldlt().solve(invec.head<4>());
+    } break;
+    case 3: {
+      Matrix<double, 3, 3> temp = mat.topLeftCorner<3, 3>();
+      outvec.head<3>() = temp.ldlt().solve(invec.head<3>());
+    } break;
+    case 2: {
+      Matrix<double, 2, 2> temp = mat.topLeftCorner<2, 2>();
+      outvec.head<2>() = temp.ldlt().solve(invec.head<2>());
+    } break;
+    case 1: {
+      Matrix<double, 1, 1> temp = mat.topLeftCorner<1, 1>();
+      outvec.head<1>() = temp.ldlt().solve(invec.head<1>());
+    } break;
+    default:
+      throw std::domain_error("MultFitWeirdState: Weird number of pulses encountered in multifit, module is configured incorrectly!");
+  }
+}
+
+bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
+			    const SampleMatrix &samplecor,
+			    double pederr,
+			    const BXVector &bxs,
+			    const FullSampleVector &fullpulse,
+			    const FullSampleMatrix &fullpulsecov,
+			    const SampleGainVector &gains,
+			    const SampleGainVector &badSamples) {
   
   const unsigned int nsample = SampleVector::RowsAtCompileTime;
   const unsigned int npulse = bxs.rows();
   
   _sampvec = samples;
   _bxs = bxs;
+
+  //construct dynamic pedestals if applicable
+  int ngains = gains.maxCoeff() + 1;
+  int nPedestals = 0;
+  for (int gainidx = 0; gainidx < ngains; ++gainidx) {
+    SampleGainVector mask = gainidx * SampleGainVector::Ones();
+    SampleVector pedestal = (gains.array() == mask.array()).cast<SampleVector::value_type>();
+    if (pedestal.maxCoeff() > 0.) {
+      ++nPedestals;
+      _bxs.resize(npulse + nPedestals);
+      _bxs[npulse + nPedestals - 1] = 100 + gainidx;  //bx values >=100 indicate dynamic pedestals
+      _pulsemat.resize(Eigen::NoChange, npulse + nPedestals);
+      _pulsemat.col(npulse + nPedestals - 1) = pedestal;
+    }
+  }
+
+  //construct negative step functions for saturated or potentially slew-rate-limited samples
+  for (int isample = 0; isample < SampleVector::RowsAtCompileTime; ++isample) {
+    if (badSamples.coeff(isample) > 0) {
+      SampleVector step = SampleVector::Zero();
+      //step correction has negative sign for saturated or slew-limited samples which have been forced to zero
+      step[isample] = -1.;
+
+      ++nPedestals;
+      _bxs.resize(npulse + nPedestals);
+      _bxs[npulse + nPedestals - 1] =
+          -100 - isample;  //bx values <=-100 indicate step corrections for saturated or slew-limited samples
+      _pulsemat.resize(Eigen::NoChange, npulse + nPedestals);
+      _pulsemat.col(npulse + nPedestals - 1) = step;
+    }
+  }
+
+  _npulsetot = npulse + nPedestals;
   
   _pulsemat = SamplePulseMatrix::Zero(nsample,npulse);
-  _ampvec = PulseVector::Zero(npulse);
-  _errvec = PulseVector::Zero(npulse);  
+  _ampvec = PulseVector::Zero(_npulsetot);
+  _errvec = PulseVector::Zero(_npulsetot);  
   _nP = 0;
   _chisq = 0.;
+
+  aTamat.resize(_npulsetot, _npulsetot);
   
   //initialize pulse template matrix
   for (unsigned int ipulse=0; ipulse<npulse; ++ipulse) {
@@ -42,6 +132,15 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples, const SampleMatrix &sam
 
   //  std::cout << "Updated pulsemat = " << std::endl << _pulsemat << std::endl;
 
+//unconstrain pedestals already for first iteration since they should always be non-zero
+  if (nPedestals > 0) {
+    for (int i = 0; i < _bxs.rows(); ++i) {
+      int bx = _bxs.coeff(i);
+      if (bx >= 100) {
+        NNLSUnconstrainParameter(i);
+      }
+    }
+  }
   
   //do the actual fit
   bool status = Minimize(samplecor,pederr,fullpulsecov);
@@ -188,6 +287,9 @@ bool PulseChiSqSNNLS::updateCov(const SampleMatrix &samplecor, double pederr, co
   for (unsigned int ipulse=0; ipulse<npulse; ++ipulse) {
     if (_ampvec.coeff(ipulse)==0.) continue;
     int bx = _bxs.coeff(ipulse);
+    if (std::abs(bx) >= 100)
+      continue;  //no contribution to covariance from pedestal or saturation/slew step correction
+
     int firstsamplet = std::max(0,bx * int(25./_NFREQ) + _npresamples);
     int offset = _maxshift - _npresamples - bx*int(25./_NFREQ);
     
@@ -233,10 +335,9 @@ bool PulseChiSqSNNLS::NNLS() {
   const unsigned int npulse = _bxs.rows();
   
   SamplePulseMatrix invcovp = _covdecomp.matrixL().solve(_pulsemat);
-  PulseMatrix aTamat(npulse,npulse);
   aTamat.triangularView<Eigen::Lower>() = invcovp.transpose()*invcovp;
   aTamat = aTamat.selfadjointView<Eigen::Lower>();
-  PulseVector aTbvec = invcovp.transpose()*_covdecomp.matrixL().solve(_sampvec);  
+  aTbvec = invcovp.transpose()*_covdecomp.matrixL().solve(_sampvec);  
   
   
   PulseVector wvec(npulse);
@@ -257,17 +358,17 @@ bool PulseChiSqSNNLS::NNLS() {
       
       //convergence
       if (wmax<1e-11) break;
+
+      //worst case protection
+      if (iter >= 500) {
+	std::cout << "PulseChiSqSNNLS::NNLS()" << "\tMax Iterations reached at iter " << iter << std::endl;
+        break;
+      }
       
       //unconstrain parameter
       Index idxp = _nP + idxwmax;
+      NNLSUnconstrainParameter(idxp);
       //printf("adding index %i, orig index %i\n",int(idxp),int(_bxs.coeff(idxp)));
-      aTamat.col(_nP).swap(aTamat.col(idxp));
-      aTamat.row(_nP).swap(aTamat.row(idxp));
-      _pulsemat.col(_nP).swap(_pulsemat.col(idxp));
-      std::swap(aTbvec.coeffRef(_nP),aTbvec.coeffRef(idxp));
-      std::swap(_ampvec.coeffRef(_nP),_ampvec.coeffRef(idxp));
-      std::swap(_bxs.coeffRef(_nP),_bxs.coeffRef(idxp));
-      ++_nP;
     }
     
     
@@ -278,16 +379,23 @@ bool PulseChiSqSNNLS::NNLS() {
       
       if (_nP==0) break;     
       
-      PulseVector ampvecpermtest = _ampvec;
+      ampvecpermtest = _ampvec;
       
       //solve for unconstrained parameters      
-      ampvecpermtest.head(_nP) = aTamat.topLeftCorner(_nP,_nP).ldlt().solve(aTbvec.head(_nP));     
+      //ampvecpermtest.head(_nP) = aTamat.topLeftCorner(_nP,_nP).ldlt().solve(aTbvec.head(_nP));     
+
+      //need to have specialized function to call optimized versions
+      // of matrix solver... this is truly amazing...
+      eigen_solve_submatrix(aTamat, aTbvec, ampvecpermtest, _nP);
       
       //check solution
-      if (ampvecpermtest.head(_nP).minCoeff()>0.) {
+      bool positive = true;
+      for (unsigned int i = 0; i < _nP; ++i)
+        positive &= (ampvecpermtest(i) > 0);
+      if (positive) {
         _ampvec.head(_nP) = ampvecpermtest.head(_nP);
         break;
-      }      
+      }
       
       //update parameter vector
       Index minratioidx=0;
@@ -295,7 +403,8 @@ bool PulseChiSqSNNLS::NNLS() {
       double minratio = std::numeric_limits<double>::max();
       for (unsigned int ipulse=0; ipulse<_nP; ++ipulse) {
         if (ampvecpermtest.coeff(ipulse)<=0.) {
-          double ratio = _ampvec.coeff(ipulse)/(_ampvec.coeff(ipulse)-ampvecpermtest.coeff(ipulse));
+	  const double c_ampvec = _ampvec.coeff(ipulse);
+          const double ratio = c_ampvec/(c_ampvec - ampvecpermtest.coeff(ipulse));
           if (ratio<minratio) {
             minratio = ratio;
             minratioidx = ipulse;
@@ -309,14 +418,7 @@ bool PulseChiSqSNNLS::NNLS() {
       _ampvec.coeffRef(minratioidx) = 0.;
       
       //printf("removing index %i, orig idx %i\n",int(minratioidx),int(_bxs.coeff(minratioidx)));
-      aTamat.col(_nP-1).swap(aTamat.col(minratioidx));
-      aTamat.row(_nP-1).swap(aTamat.row(minratioidx));
-      _pulsemat.col(_nP-1).swap(_pulsemat.col(minratioidx));
-      std::swap(aTbvec.coeffRef(_nP-1),aTbvec.coeffRef(minratioidx));
-      std::swap(_ampvec.coeffRef(_nP-1),_ampvec.coeffRef(minratioidx));
-      std::swap(_bxs.coeffRef(_nP-1),_bxs.coeffRef(minratioidx));
-      --_nP;
-      
+      NNLSConstrainParameter(minratioidx);      
     }
     ++iter;
     
@@ -331,4 +433,24 @@ bool PulseChiSqSNNLS::NNLS() {
   return true;
   
   
+}
+
+void PulseChiSqSNNLS::NNLSUnconstrainParameter(Index idxp) {
+  aTamat.col(_nP).swap(aTamat.col(idxp));
+  aTamat.row(_nP).swap(aTamat.row(idxp));
+  _pulsemat.col(_nP).swap(_pulsemat.col(idxp));
+  std::swap(aTbvec.coeffRef(_nP), aTbvec.coeffRef(idxp));
+  std::swap(_ampvec.coeffRef(_nP), _ampvec.coeffRef(idxp));
+  std::swap(_bxs.coeffRef(_nP), _bxs.coeffRef(idxp));
+  ++_nP;
+}
+
+void PulseChiSqSNNLS::NNLSConstrainParameter(Index minratioidx) {
+  aTamat.col(_nP - 1).swap(aTamat.col(minratioidx));
+  aTamat.row(_nP - 1).swap(aTamat.row(minratioidx));
+  _pulsemat.col(_nP - 1).swap(_pulsemat.col(minratioidx));
+  std::swap(aTbvec.coeffRef(_nP - 1), aTbvec.coeffRef(minratioidx));
+  std::swap(_ampvec.coeffRef(_nP - 1), _ampvec.coeffRef(minratioidx));
+  std::swap(_bxs.coeffRef(_nP - 1), _bxs.coeffRef(minratioidx));
+  --_nP;
 }
