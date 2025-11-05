@@ -11,4 +11,7 @@ typedef Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,0,16,16> PulseMatrix;
 typedef Eigen::Matrix<double,16,Eigen::Dynamic,0,16,16> SamplePulseMatrix;
 typedef Eigen::LLT<SampleMatrix> SampleDecompLLT;
 
+typedef Eigen::Matrix<double, 1, 1> SingleMatrix;
+typedef Eigen::Matrix<double, 1, 1> SingleVector;
+
 typedef std::array<SampleMatrix, 1> SampleMatrixGainArray;

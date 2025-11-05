@@ -80,7 +80,8 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
   
   _sampvec = samples;
   _bxs = bxs;
-
+  _pulsemat.resize(Eigen::NoChange, npulse);
+  
   //construct dynamic pedestals if applicable
   int ngains = gains.maxCoeff() + 1;
   int nPedestals = 0;
@@ -114,14 +115,13 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
 
   _npulsetot = npulse + nPedestals;
   
-  _pulsemat = SamplePulseMatrix::Zero(nsample,npulse);
   _ampvec = PulseVector::Zero(_npulsetot);
-  _errvec = PulseVector::Zero(_npulsetot);  
+  _errvec = PulseVector::Zero(_npulsetot);
   _nP = 0;
   _chisq = 0.;
 
   aTamat.resize(_npulsetot, _npulsetot);
-  
+
   //initialize pulse template matrix
   for (unsigned int ipulse=0; ipulse<npulse; ++ipulse) {
     int bx = _bxs.coeff(ipulse);
@@ -130,9 +130,9 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
     _pulsemat.col(ipulse) = fullpulse.segment<SampleVector::RowsAtCompileTime>(offset);
   }
 
-  //  std::cout << "Updated pulsemat = " << std::endl << _pulsemat << std::endl;
+  // std::cout << "pulsemat after pedestal + bad samples additions = " << std::endl << _pulsemat << std::endl;
 
-//unconstrain pedestals already for first iteration since they should always be non-zero
+  //unconstrain pedestals already for first iteration since they should always be non-zero
   if (nPedestals > 0) {
     for (int i = 0; i < _bxs.rows(); ++i) {
       int bx = _bxs.coeff(i);
@@ -141,7 +141,7 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
       }
     }
   }
-  
+
   //do the actual fit
   bool status = Minimize(samplecor,pederr,fullpulsecov);
   _ampvecmin = _ampvec;
@@ -155,23 +155,23 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
   
   if (!status) return status;
   
-//   std::cout << " _computeErrors = " << _computeErrors << std::endl;
+  //   std::cout << " _computeErrors = " << _computeErrors << std::endl;
   
   if(!_computeErrors) return status;
   
   //compute MINOS-like uncertainties for in-time amplitude
   bool foundintime = false;
   unsigned int ipulseintime = 0;
-//   std::cout << " npulse = " << npulse << std::endl;
+  //   std::cout << " npulse = " << npulse << std::endl;
   for (unsigned int ipulse=0; ipulse<npulse; ++ipulse) {
-//     std::cout << " _bxs.coeff( " << ipulse << "::" << npuls3e << " ) = " << _bxs.coeff(ipulse) << std::endl;
+    //     std::cout << " _bxs.coeff( " << ipulse << "::" << npulse << " ) = " << _bxs.coeff(ipulse) << std::endl;
     if (_bxs.coeff(ipulse)==0) {
       ipulseintime = ipulse;
       foundintime = true;
       break;
     }
   }
-//   std::cout << " foundintime = " << foundintime << std::endl;
+  std::cout << " foundintime = " << foundintime << std::endl;
   if (!foundintime) return status;
   
   
@@ -180,7 +180,7 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
   
   double approxerr = ComputeApproxUncertainty(ipulseintime);
   double chisq0 = _chisq;
-  double x0 = _ampvecmin[ipulseintime];  
+  double x0 = _ampvecmin[ipulseintime];
   
   //move in time pulse first to active set if necessary
   if (ipulseintime<_nP) {
@@ -192,7 +192,6 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
   }
   
   
-  
   SampleVector pulseintime = _pulsemat.col(ipulseintime);
   _pulsemat.col(ipulseintime).setZero();
   
@@ -201,13 +200,9 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
   _ampvec.coeffRef(ipulseintime) = xplus100;
   _sampvec = samples - _ampvec.coeff(ipulseintime)*pulseintime;  
 
-//   std::cout << " here 1 " << std::endl;
   status &= Minimize(samplecor,pederr,fullpulsecov);
   if (!status) return status;
   double chisqplus100 = ComputeChiSq();
-  
-//   std::cout << " here 2 " << std::endl;
-  
   
   double sigmaplus = std::abs(xplus100-x0)/sqrt(chisqplus100-chisq0);
   
@@ -241,14 +236,12 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
 }
 
 bool PulseChiSqSNNLS::Minimize(const SampleMatrix &samplecor, double pederr, const FullSampleMatrix &fullpulsecov) {
-  
+  const unsigned int npulse = _bxs.rows();
   
   const int maxiter = 50;
   int iter = 0;
   bool status = false;
   while (true) {    
-    
-    //    std::cout << " iter =  " << iter << " :: " << maxiter << std::endl;
     
     if (iter>=maxiter) {
       std::cout << "PulseChiSqSNNLS::Minimize ===> " << "Max Iterations reached at iter " << iter <<  std::endl;
@@ -258,7 +251,12 @@ bool PulseChiSqSNNLS::Minimize(const SampleMatrix &samplecor, double pederr, con
     
     status = updateCov(samplecor,pederr,fullpulsecov);    
     if (!status) break;    
-    status = NNLS();
+    if (npulse > 1) {
+      status = NNLS();
+    } else {
+      //special case for one pulse fit (performance optimized)
+      status = OnePulseMinimize();
+    }
     if (!status) break;
     
     double chisqnow = ComputeChiSq();
@@ -272,7 +270,7 @@ bool PulseChiSqSNNLS::Minimize(const SampleMatrix &samplecor, double pederr, con
   }  
   
   return status;  
-  
+
 }
 
 bool PulseChiSqSNNLS::updateCov(const SampleMatrix &samplecor, double pederr, const FullSampleMatrix &fullpulsecov) {
@@ -453,4 +451,20 @@ void PulseChiSqSNNLS::NNLSConstrainParameter(Index minratioidx) {
   std::swap(_ampvec.coeffRef(_nP - 1), _ampvec.coeffRef(minratioidx));
   std::swap(_bxs.coeffRef(_nP - 1), _bxs.coeffRef(minratioidx));
   --_nP;
+}
+
+bool PulseChiSqSNNLS::OnePulseMinimize() {
+  //Fast NNLS (fnnls) algorithm as per http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.157.9203&rep=rep1&type=pdf
+
+  //   const unsigned int npulse = 1;
+
+  invcovp = _covdecomp.matrixL().solve(_pulsemat);
+  //   aTamat = invcovp.transpose()*invcovp;
+  //   aTbvec = invcovp.transpose()*_covdecomp.matrixL().solve(_sampvec);
+
+  SingleMatrix aTamatval = invcovp.transpose() * invcovp;
+  SingleVector aTbvecval = invcovp.transpose() * _covdecomp.matrixL().solve(_sampvec);
+  _ampvec.coeffRef(0) = std::max(0., aTbvecval.coeff(0) / aTamatval.coeff(0));
+
+  return true;
 }

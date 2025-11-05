@@ -167,8 +167,6 @@ void Pulse::SetFNAMESHAPE ( std::string name ) {
 void Pulse::Init() {
   
   _filePS = new TFile(_FNAMESHAPE.Data());
-  
-  TFile* tempFile = new TFile("temp.root","RECREATE");
   _grPS = (TGraph*) ((TGraph*)_filePS->Get("PulseShape/grPulseShape")) -> Clone();
   
   // In-time sample is i=5
@@ -242,7 +240,6 @@ void Pulse::InitCorr() {
   
   for(int i=0; i<_NSAMPLES; i++){
     double y = 1. - exp( -double(_NFREQ * i) / (sqrt(2.) * _TAU));
-      std::cout << "  ----> y(" << i << "::" << _NSAMPLES << " ) = " << y << " _TAU = " << _TAU << " _NFREQ = " << _NFREQ << std::endl;
     _mC.push_back( 1. - y * y);
 //     _mC.push_back( 1. );
 //     _mC.push_back( 0.999 );

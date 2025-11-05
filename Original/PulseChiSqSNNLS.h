@@ -42,6 +42,7 @@ protected:
   bool NNLS();
   void NNLSUnconstrainParameter(Index idxp);
   void NNLSConstrainParameter(Index minratioidx);
+  bool OnePulseMinimize();
   bool updateCov(const SampleMatrix &samplecor, double pederr, const FullSampleMatrix &fullpulsecov);
   double ComputeChiSq();
   double ComputeApproxUncertainty(unsigned int ipulse);

@@ -28,6 +28,7 @@ FullSampleMatrix fullpulsecov(FullSampleMatrix::Zero());
 SampleMatrix noisecor(SampleMatrix::Zero());
 BXVector activeBX;
 SampleVector amplitudes(SampleVector::Zero());
+SampleGainVector gains(-1 * SampleGainVector::Ones());
 
 
 void init()
@@ -37,7 +38,6 @@ void init()
   pSh.Init();
 
   // intime sample is [3] // edm
-  std::cout << "NFREQ = " << NFREQ << std::endl;
   for(int i=0; i<nTemplateBins; i++){
     
     //     double x = double( IDSTART + NFREQ * (i + 3) - WFLENGTH / 2);
@@ -51,7 +51,7 @@ void init()
   // shift from min early BX (-4) to first pulse sample (5) = 5 + 4 = 0
   for (int i=0; i<nTemplateBins; ++i) fullpulse(i+14) = pulseShapeTemplate[i];
     
-  std::cout << " initialized fullpulse = " << std::endl << fullpulse << std::endl;
+  //  std::cout << " initialized fullpulse = " << std::endl << fullpulse << std::endl;
   
   for (int i=0; i<NSAMPLES; ++i) {
     for (int j=0; j<NSAMPLES; ++j) {
@@ -60,7 +60,7 @@ void init()
     }
   }
 
-  std::cout << " initialized noisecor = " << std::endl << noisecor << std::endl;
+  // std::cout << " initialized noisecor = " << std::endl << noisecor << std::endl;
 
   activeBX.resize(activeBXs.size());
   for (unsigned int ibx=0; ibx<activeBX.size(); ++ibx) {
@@ -84,7 +84,6 @@ void run(std::string inputFile, std::string outFile)
   tree->SetBranchAddress("samples",             &samples);
   int nentries = tree->GetEntries();
     
-  std::cout << " outFile = " << outFile << std::endl;
   TFile *fout = new TFile(outFile.c_str(),"recreate");
   
   fout->cd();
@@ -93,26 +92,43 @@ void run(std::string inputFile, std::string outFile)
   
   float chisq;
   std::vector <double> samplesReco;
+  std::vector <double> pedestalsReco;
   
   int ipulseintime = 0;
   int nBins = nTemplateBins;
   newtree->Branch("chi2",   &chisq, "chi2/F");
   newtree->Branch("samplesReco",   &samplesReco);
+  newtree->Branch("pedestalsReco",   &pedestalsReco);
   newtree->Branch("ipulseintime",  &ipulseintime,  "ipulseintime/I");
   newtree->Branch("activeBXs",     &activeBXs);
   newtree->Branch("nTemplateBins",   &nBins, "nTemplateBins/I");
   newtree->Branch("pulseShapeTemplate",   pulseShapeTemplate, "pulseShapeTemplate[nTemplateBins]/F");
   
   int totalNumberOfBxActive = activeBX.size();
-  
+
   for (unsigned int ibx=0; ibx<totalNumberOfBxActive; ++ibx) {
     samplesReco.push_back(0.);
   }
 
   double pedval = 0.;
   double pedrms = 0.05;
+
+  bool fitPedestal = true;
+  if (fitPedestal) gains = SampleGainVector::Zero(); // here decides n. pedestals to be fitted (1/gain)
+  int ngains = gains.maxCoeff() + 1;
+  for (int gainidx = 0; gainidx < ngains; ++gainidx) {
+    SampleGainVector mask = gainidx * SampleGainVector::Ones();
+    SampleVector pedestal = (gains.array() == mask.array()).cast<SampleVector::value_type>();
+    if (pedestal.maxCoeff() > 0.) {
+      pedestalsReco.push_back(0.);
+    }
+  }
+  
   int maxshift = NPRESAMPLES + (*max_element(activeBX.begin(),activeBX.end())) * int(25./NFREQ);
-  int minBX = *min_element(activeBX.begin(),activeBX.end());
+  int minBX = *min_element(activeBX.begin(),activeBX.end());  
+  
+  // std::cout << "Total n of active BX (including pedestal) = " << totalNumberOfBxActive << std::endl;
+  // std::cout << "Number of pedestals fitted = " << pedestalsReco.size() << std::endl;
   
   PulseChiSqSNNLS pulsefunc;
   pulsefunc.setNPresamples(NPRESAMPLES);
@@ -127,7 +143,7 @@ void run(std::string inputFile, std::string outFile)
       amplitudes[i] = samples->at(i);
     }
 
-    bool status = pulsefunc.DoFit(amplitudes,noisecor,pedrms,activeBX,fullpulse,fullpulsecov);
+    bool status = pulsefunc.DoFit(amplitudes,noisecor,pedrms,activeBX,fullpulse,fullpulsecov,gains);
     chisq = pulsefunc.ChiSq();
     
     for (unsigned int ipulse=0; ipulse<pulsefunc.BXs().rows(); ++ipulse) {
@@ -148,12 +164,25 @@ void run(std::string inputFile, std::string outFile)
     std::cout << " aMax = " << aMax << " amplitudeTruth = " << amplitudeTruth << "  chisq = " << chisq << std::endl;
     
     for (unsigned int ipulse=0; ipulse<pulsefunc.BXs().rows(); ++ipulse) {
+      int iReco = (int(pulsefunc.BXs().coeff(ipulse)));
       if (status) {
-	samplesReco[ (int(pulsefunc.BXs().coeff(ipulse))) - minBX] = pulsefunc.X()[ ipulse ];
-	// std::cout << "\t ipulse = " << ipulse << " idx = " << (int(pulsefunc.BXs().coeff(ipulse))) - minBX << "  ampli = " << pulsefunc.X()[ ipulse ] << std::endl;
-      }
-      else {
-	samplesReco[ipulse] = -1;
+        if (abs(iReco)<100) { 
+          //          std::cout << "\t ipulse = " << ipulse << " idx = " << iReco << "  ampli = " << pulsefunc.X()[ ipulse ] << std::endl;
+          samplesReco[iReco - minBX] = pulsefunc.X()[ ipulse ];
+        } else if (iReco>=100) {
+          std::cout << "pedestal[" << iReco-100 << "] = " << pulsefunc.X()[ ipulse ] << std::endl;
+          pedestalsReco[iReco-100] = pulsefunc.X()[ ipulse ];
+        } else {
+          std::cout << " idx < 0 is for bad sample (e.g. slew rate). This should not happen, not turned on yet" << std::endl;
+        }
+      } else {
+        if (iReco>=0 && iReco<100) {
+          samplesReco[iReco - minBX] = -1;
+        } else if (iReco>=100) {
+          pedestalsReco[iReco-100] = -1;
+        } else {
+          std::cout << " idx < 0 is for bad sample (e.g. slew rate). This should not happen, not turned on yet" << std::endl;          
+        }
       }
     }
     
