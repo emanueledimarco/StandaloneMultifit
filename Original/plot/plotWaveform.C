@@ -151,8 +151,8 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
  }
  
  for(int iBx=0; iBx<(int)samplesReco->size(); iBx++){
-  /* std::cout << " iBx = " << iBx << std::endl; */
-  /* std::cout << " Energy = " << samplesReco->at(iBx) << std::endl; */
+  std::cout << " iBx = " << iBx << std::endl;
+  std::cout << " Energy = " << samplesReco->at(iBx) << std::endl;
   grPulseReco.push_back(new TGraph());
   for(int i=0; i<(int)samples->size(); i++){
     float templateVal = i < 9 ? pulseShapeTemplate[i] : 0;
@@ -191,9 +191,9 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
    grPulseReco[iBx]->Draw("PC");
  }
 
- grPulse->SetMarkerStyle(kFullTriangleUp);
- grPulse->SetMarkerColor(kRed);
- grPulse->Draw("PL");
+ /* grPulse->SetMarkerStyle(kFullTriangleUp); */
+ /* grPulse->SetMarkerColor(kRed); */
+ /* grPulse->Draw("PL"); */
  
  leg2->Draw();
 

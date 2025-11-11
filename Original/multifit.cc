@@ -21,6 +21,8 @@ Pulse pSh;
 
 const int nTemplateBins = 9;
 float pulseShapeTemplate[nTemplateBins];
+float templateCovariance[NSAMPLES][NSAMPLES];
+
 std::vector<int> activeBXs = { -4, -3, -2, -1,  0,  1,  2 };
 
 FullSampleVector fullpulse(FullSampleVector::Zero());
@@ -34,7 +36,8 @@ SampleGainVector gains(-1 * SampleGainVector::Ones());
 void init()
 {
   
-  pSh.SetFNAMESHAPE("data/EmptyFileIdealPSphase2.root");
+  pSh.SetFNAMESHAPE("data/EmptyFileTestBeamPhase2.root");
+  pSh.SetFNAMECOV("data/PulseCovarianceTestBeamPhase2.root");
   pSh.Init();
 
   // intime sample is [3] // edm
@@ -51,8 +54,17 @@ void init()
   // shift from min early BX (-4) to first pulse sample (5) = 5 + 4 = 0
   for (int i=0; i<nTemplateBins; ++i) fullpulse(i+14) = pulseShapeTemplate[i];
     
-  //  std::cout << " initialized fullpulse = " << std::endl << fullpulse << std::endl;
-  
+  // std::cout << " initialized fullpulse = " << std::endl << fullpulse << std::endl;
+
+  for(int i=0; i<NSAMPLES; i++) {
+    for(int j=0; j<NSAMPLES; j++) {
+      templateCovariance[i][j] = pSh.fCov(i,j);
+      fullpulsecov(i + 14, j + 14) = templateCovariance[i][j];
+    }
+  }
+
+  // std::cout << " initialized fullpulsecov = " << std::endl << fullpulsecov << std::endl;
+
   for (int i=0; i<NSAMPLES; ++i) {
     for (int j=0; j<NSAMPLES; ++j) {
       int vidx = std::abs(j-i);
@@ -113,7 +125,7 @@ void run(std::string inputFile, std::string outFile)
   double pedval = 0.;
   double pedrms = 0.05;
 
-  bool fitPedestal = true;
+  bool fitPedestal = false;
   if (fitPedestal) gains = SampleGainVector::Zero(); // here decides n. pedestals to be fitted (1/gain)
   int ngains = gains.maxCoeff() + 1;
   for (int gainidx = 0; gainidx < ngains; ++gainidx) {

@@ -2,6 +2,7 @@
 #include <TFile.h>
 #include <TTree.h>
 #include <TGraph.h>
+#include <TH2F.h>
 
 #include <iostream>
 #include <iomanip>
@@ -50,13 +51,14 @@ class Pulse{
   //   double mC_[NSAMPLES];
   //   double mL_[NSAMPLES][NSAMPLES];
   TGraph *_grPS;
+  TH2F *_hCov;
   float _tMin;
   float _fPar0;
   float _fPar1;
-  TFile *_filePS;
+  TFile *_filePS, *_fileCov;
   
   int _NSAMPLES;
-  TString _FNAMESHAPE;
+  TString _FNAMESHAPE, _FNAMECOV;
   
   // distance between samples in 1ns steps
   //   a.k.a. ~1/sampling rate in ns   
@@ -79,6 +81,7 @@ public:
   ~Pulse();
   
   void SetFNAMESHAPE ( std::string name );
+  void SetFNAMECOV ( std::string name );
   void SetNSAMPLES ( int NSAMPLES );
   void SetNFREQ ( float NFREQ );
   void SetTAU ( float TAU );
@@ -102,6 +105,7 @@ public:
   void SetNoiseCorrelationZero();
   void SetNoiseCorrelationMax();
   double fShape(double);
+  float fCov(int i, int j);
   
 };
 
@@ -110,6 +114,7 @@ Pulse::Pulse()
 {
   //---- default
   SetFNAMESHAPE("data/EmptyFileCRRC43.root");
+  SetFNAMECOV("data/PulseCovarianceTestBeamPhase2.root");
   SetNSAMPLES(16);
   SetNFREQ(6.25);
   SetIDSTART(104);
@@ -117,6 +122,7 @@ Pulse::Pulse()
   SetWFLENGTH(208);
   
   _grPS = 0x0;
+  _hCov = 0x0;
 }
 
 
@@ -163,11 +169,18 @@ void Pulse::SetFNAMESHAPE ( std::string name ) {
   _FNAMESHAPE = Form ("%s", name.c_str());
 }
 
+void Pulse::SetFNAMECOV ( std::string name ) {
+  _FNAMECOV = Form ("%s", name.c_str());
+}
+
 
 void Pulse::Init() {
   
   _filePS = new TFile(_FNAMESHAPE.Data());
   _grPS = (TGraph*) ((TGraph*)_filePS->Get("PulseShape/grPulseShape")) -> Clone();
+
+  _fileCov = new TFile(_FNAMECOV.Data());
+  _hCov = (TH2F*) ((TH2F*)_fileCov->Get("PulseCovariance")) -> Clone();
   
   // In-time sample is i=5
   for(int i=0; i<_NSAMPLES; i++){
@@ -190,6 +203,11 @@ double Pulse::fShape(double x) {
   }
 }
 
+float Pulse::fCov(int i, int j) {
+  if ( i == j ) return 0.;
+  if ( i>=0 && i<_hCov->GetNbinsX()) return _hCov->GetBinContent(i+1,j+1);
+  return 0.;
+}
 
 void Pulse::SetNoiseCorrelationZero() {
   _mC.clear();
