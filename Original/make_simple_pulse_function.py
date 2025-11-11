@@ -188,14 +188,12 @@ def makeInputPSGraphFromTestBeam(tbfile="pulse_tgraph_fromTB.root",graph="pulse_
     print("Done.")
 
 
-def two_closest_points(value, data):
+def closest_point(value, data):
     data = np.asarray(data, dtype=float)
     # Compute absolute differences
-    diff = np.abs(data - value)
-    # Get indices of the two smallest differences
-    indices = np.argsort(diff)[:2]
-    # Return both values and indices
-    return data[sorted(indices)], sorted(indices)
+    index = np.argmin(np.abs(data - value))
+    # Return both value and index
+    return data[index], index
 
 def correlation_from_covariance(covariance):
     v = np.sqrt(np.diag(covariance))
@@ -232,36 +230,44 @@ def makePulseCovariance(rfile,pulse_shape,time_bias=0,time_spread=100*1e-3,n_eve
     ps = f.Get(pulse_shape)
 
     x, y, ex, ey = graph_to_arrays(ps)
-    ymax = max(y)
     
     covmat = np.matrix(np.zeros((16,16), dtype=np.float64))
     t0s = []
 
     template_atMax = ps.Eval((maxSample-NPRESAMPLES) * NFREQ)
-    print ("template val at max sample = ",template_atMax)
-    
-    run_ps_params = ps_params.copy()
-    for i in range(n_events):
-        tshift = random.uniform(-1*time_spread,time_spread)
-        t0s.append(18.+tshift)
 
-        run_ps_params[1] = 18. + tshift
+    for i in range(n_events):
+        if i%100==0: print ("Generating variation n. ",i)
+        tshift = random.uniform(-1*time_spread,time_spread)
         pulse_atMax = ps.Eval((maxSample-NPRESAMPLES) * NFREQ + tshift)
-        
+
+        ashift = random.uniform(-1,1)
+        pulseUpDn_atMax = template_atMax + ashift*ey[closest_point((maxSample-NPRESAMPLES) * NFREQ,x)[1]]
+
         # now take the digitized points
         for i in range(NSAMPLES):
             for j in range(NSAMPLES):
+                # nominal template values
+                tplval_i = ps.Eval(i * NFREQ)
+                tplval_j = ps.Eval(j * NFREQ)
+                template_i = tplval_i/template_atMax;
+                template_j = tplval_j/template_atMax;
+                # effect of time shift
                 sample_i = ps.Eval(i * NFREQ + tshift)/pulse_atMax;
-                template_i = ps.Eval(i * NFREQ)/template_atMax;
                 sample_j = ps.Eval(j * NFREQ + tshift)/pulse_atMax;
-                template_j = ps.Eval(j * NFREQ)/template_atMax;
                 cov_timespread = (sample_i - template_i) * (sample_j - template_j);
-                closest_pts_i = two_closest_points(i * NFREQ + tshift, x)[1]
-                closest_pts_j = two_closest_points(j * NFREQ + tshift, x)[1]
-                sampleerr_i = np.average(ey[closest_pts_i])
-                sampleerr_j = np.average(ey[closest_pts_j])
-                cov_template = sampleerr_i * sampleerr_j
-                covmat[i,j] += math.hypot(cov_timespread,cov_template)
+                
+                # effect of amplitude flucts (uncertainties from TB shape)
+                closest_i = closest_point(i * NFREQ, x)[1]
+                closest_j = closest_point(j * NFREQ, x)[1]
+                sampleerr_i = ey[closest_i]
+                sampleerr_j = ey[closest_j]
+
+                sampleUpDn_i = (tplval_i + ashift*sampleerr_i)/pulseUpDn_atMax
+                sampleUpDn_j = (tplval_j + ashift*sampleerr_j)/pulseUpDn_atMax
+                cov_template = (sampleUpDn_i - template_i) * (sampleUpDn_j - template_j);
+                #print ("   [",i,",",j,"] ==> ",cov_timespread,"  ;  ",cov_template)
+                covmat[i,j] += (cov_timespread+cov_template)
                 
     covmat /= n_events
     print("covmat = ",covmat)
@@ -272,46 +278,29 @@ def makePulseCovariance(rfile,pulse_shape,time_bias=0,time_spread=100*1e-3,n_eve
     fout.cd()
     covmat_th2 = numpy_to_TH2F(covmat)
     corrmat_th2 = numpy_to_TH2F(corrmat,"PulseCorrelation","Template Correlation Matrix")
+    covmat_th2.GetXaxis().SetTitle("Sample")
+    covmat_th2.GetYaxis().SetTitle("Sample")
+    corrmat_th2.GetXaxis().SetTitle("Sample")
+    corrmat_th2.GetYaxis().SetTitle("Sample")
     covmat_th2.Write()
     corrmat_th2.Write()
+
+    canvas = ROOT.TCanvas("c1", "Pulse Variations", 800, 600)
+
+    ROOT.gStyle.SetPaintTextFormat("1.6f");
+    covmat_th2.Draw("colz")
+    covmat_th2.Draw("text same")
+    canvas.SaveAs("covmat.pdf")
+    
+    ROOT.gStyle.SetPaintTextFormat("1.2f");
+    corrmat_th2.Draw("colz")
+    corrmat_th2.Draw("text same")
+    canvas.SaveAs("corrmat.pdf")
     fout.Close()
     
     
-    # plot the largest positive and negative variations, to have an idea
-    # maxs = sorted(t0s)[-6:-1]
-    # mins = sorted(t0s)[0:6]
-    # print("max spreads = ",mins+maxs)
-    
-    # canvas = ROOT.TCanvas("c1", "Pulse Variations", 800, 600)
-    # legend = ROOT.TLegend(0.65, 0.5, 0.9, 0.9)
-    # legend.SetHeader("Pulse variations", "C")
-    
-    # colors = [ROOT.kRed, ROOT.kBlue, ROOT.kGreen + 2, ROOT.kMagenta, ROOT.kOrange + 1]
-    # graphs = []
-
-    # for i,s in enumerate(mins+maxs):
-    #     ps_params[1] = s
-    #     pulse = ROOT.TF1(f"pulse{i}", pyf_total, 0, 60., ps_params.size)
-    #     pulse.SetParameters(*ps_params)
-        
-    #     pulse.SetLineColor(colors[i % len(colors)])
-    #     pulse.SetLineWidth(2)
-    #     pulse.SetName("")
-    #     pulse.GetXaxis().SetTitle("time [ns]")
-    #     pulse.GetYaxis().SetTitle("p.d.f.")
-    #     if i == 0:
-    #         pulse.Draw()  # first one defines axes
-    #     else:
-    #         pulse.Draw("SAME")
-    #     legend.AddEntry(pulse, f"Event {i} (t0 shift={s*4:.3f} ns)", "l")
-    #     graphs.append(pulse)
-
-    # legend.Draw()
-    # canvas.Update()
-    # canvas.SaveAs("pulses_spread.root")
-    # canvas.SaveAs("pulses_spread.pdf")
     
 if __name__ == "__main__":
     #makeInputPSGraphFromIdealFunction()
     #makeInputPSGraphFromTestBeam("data/pulse_tgraph_fromTB.root")    
-    makePulseCovariance("data/EmptyFileTestBeamPhase2.root","PulseShape/grPulseShape",n_events=100)
+    makePulseCovariance("data/EmptyFileTestBeamPhase2.root","PulseShape/grPulseShape",n_events=10000)
