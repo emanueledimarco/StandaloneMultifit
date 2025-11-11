@@ -9,7 +9,7 @@ Create data
                         1                     2                  3            4        5           6                   7                 8           9              10              11               12              13
     ./CreateData   temporal_shift      number_of_events       NSAMPLES       NFREQ     nPU    signalAmplitude    sigmaNoiseScale     puFactor  wf_name_string    pu_shift     noise-correlation    pedestal  slew-rate-distortion
 
-    ./CreateData        0                   11                  16           6.25       0           10                 1                 1      IdealPSphase2        0             0.5                0
+    ./CreateData        0                   11                  16           6.25       0           10                 1                 1      TestBeamPhase2        0             0.5                0.5
 
 
     ./CreateData   0        11    10     25     0     10    0         0      CRRC43     0    0.5       0
