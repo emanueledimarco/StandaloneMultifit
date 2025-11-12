@@ -217,7 +217,7 @@ def numpy_to_TH2F(matrix, name="PulseCovariance", title="Template Covariance Mat
 
     return h2
 
-def makePulseCovariance(rfile,pulse_shape,time_bias=0,time_spread=100*1e-3,n_events=1e4):
+def makePulseCovariance(rfile,pulse_shape,time_bias=0,time_spread=250*1e-3,n_events=1e4):
 
     NFREQ = 6.25
     NSAMPLES = 16;
@@ -241,9 +241,10 @@ def makePulseCovariance(rfile,pulse_shape,time_bias=0,time_spread=100*1e-3,n_eve
         tshift = random.uniform(-1*time_spread,time_spread)
         pulse_atMax = ps.Eval((maxSample-NPRESAMPLES) * NFREQ + tshift)
 
-        ashift = random.uniform(-1,1)
+        #ashift = random.uniform(-1,1)
+        ashift = np.random.normal(0,1)
         pulseUpDn_atMax = template_atMax + ashift*ey[closest_point((maxSample-NPRESAMPLES) * NFREQ,x)[1]]
-
+        
         # now take the digitized points
         for i in range(NSAMPLES):
             for j in range(NSAMPLES):
