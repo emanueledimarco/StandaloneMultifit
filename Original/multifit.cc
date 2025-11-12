@@ -123,7 +123,7 @@ void run(std::string inputFile, std::string outFile)
   }
 
   double pedval = 0.;
-  double pedrms = 0.05;
+  double pedrms = 3*0.044;
 
   bool fitPedestal = false;
   if (fitPedestal) gains = SampleGainVector::Zero(); // here decides n. pedestals to be fitted (1/gain)
