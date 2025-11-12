@@ -23,7 +23,7 @@ const int nTemplateBins = 9;
 float pulseShapeTemplate[nTemplateBins];
 float templateCovariance[NSAMPLES][NSAMPLES];
 
-std::vector<int> activeBXs = { -4, -3, -2, -1,  0,  1,  2 };
+std::vector<int> activeBXs = { -3, -2, -1,  0,  1,  2 };
 
 FullSampleVector fullpulse(FullSampleVector::Zero());
 FullSampleMatrix fullpulsecov(FullSampleMatrix::Zero());
@@ -50,7 +50,7 @@ void init()
   }
   //  for(int i=0; i<(NSAMPLES+2); i++) pulseShapeTemplate[i] /= pulseShapeTemplate[2];
   // 9 is the number of samples sufficient to cover the part non 0 of the pulse template
-  // distance from min early BX (-4) to max late BX (+2) = 4*NFREQ + 16 + 2*NFREQ = 40 (NFREQ=4, fullpulse length)
+  // distance from min early BX (-4) to max late BX (+2) = 4*NFREQ + 16 + 2*NFREQ = 40 (NFREQ=4, fullpulse length) (if min early BX =-3 then 3*4 + 16 + 2*4 = 36)
   // shift from min early BX (-4) to first pulse sample (5) = 5 + 4 = 0
   for (int i=0; i<nTemplateBins; ++i) fullpulse(i+14) = pulseShapeTemplate[i];
     
@@ -63,7 +63,7 @@ void init()
     }
   }
 
-  // std::cout << " initialized fullpulsecov = " << std::endl << fullpulsecov << std::endl;
+  //  std::cout << " initialized fullpulsecov = " << std::endl << fullpulsecov << std::endl;
 
   for (int i=0; i<NSAMPLES; ++i) {
     for (int j=0; j<NSAMPLES; ++j) {
