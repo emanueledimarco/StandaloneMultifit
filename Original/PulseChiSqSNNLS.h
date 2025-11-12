@@ -70,6 +70,7 @@ protected:
   PulseVector ampvecpermtest;
   
   double _chisq;
+  double _deltachisq;
   bool _computeErrors;
   int _npresamples;
   int _maxshift;

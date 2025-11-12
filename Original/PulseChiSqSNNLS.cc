@@ -5,6 +5,7 @@
 
 PulseChiSqSNNLS::PulseChiSqSNNLS() :
 _chisq(0.),
+_deltachisq(0.),
 _computeErrors(true),
 _npresamples(3),
 _maxshift(7)
@@ -119,7 +120,8 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
   _errvec = PulseVector::Zero(_npulsetot);
   _nP = 0;
   _chisq = 0.;
-
+  _deltachisq = 0.;
+  
   aTamat.resize(_npulsetot, _npulsetot);
 
   //initialize pulse template matrix
@@ -171,7 +173,7 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
       break;
     }
   }
-  std::cout << " foundintime = " << foundintime << std::endl;
+  // std::cout << " foundintime = " << foundintime << std::endl;
   if (!foundintime) return status;
   
   
@@ -261,11 +263,22 @@ bool PulseChiSqSNNLS::Minimize(const SampleMatrix &samplecor, double pederr, con
     
     double chisqnow = ComputeChiSq();
     double deltachisq = chisqnow-_chisq;
+
+    // std::cout << "Iter = " << iter << "  chisq now = " << chisqnow <<  "   deltachisq = " << std::abs(deltachisq) << std::endl;
+    // std::cout << "N active pulses = " << _nP << std::endl;
     
     _chisq = chisqnow;
     if (std::abs(deltachisq)<1e-3) {
       break;
     }
+
+    // std::cout << "              _deltachisq = " << _deltachisq << " doubleDelta = " << std::abs(std::abs(_deltachisq)-std::abs(deltachisq)) << std::endl;
+    // to avoid bouncing between two degenerate solutions
+    if (std::abs(std::abs(_deltachisq)-std::abs(deltachisq))<1e-3) {
+      break;
+    }
+    _deltachisq = deltachisq;
+    
     ++iter;    
   }  
   
@@ -275,10 +288,12 @@ bool PulseChiSqSNNLS::Minimize(const SampleMatrix &samplecor, double pederr, con
 
 bool PulseChiSqSNNLS::updateCov(const SampleMatrix &samplecor, double pederr, const FullSampleMatrix &fullpulsecov) {
   
-  //  std::cout << " updateCov " << std::endl;
+  // std::cout << " updateCov " << std::endl;
   
   const unsigned int nsample = SampleVector::RowsAtCompileTime;
   const unsigned int npulse = _bxs.rows();
+
+  // std::cout << "_bxs = " << std::endl << _bxs << "   npulse = " << npulse << std::endl;
   
   _invcov.triangularView<Eigen::Lower>() = (pederr*pederr)*samplecor;
   
@@ -292,12 +307,14 @@ bool PulseChiSqSNNLS::updateCov(const SampleMatrix &samplecor, double pederr, co
     int offset = _maxshift - _npresamples - bx*int(25./_NFREQ);
     
     double ampsq = _ampvec.coeff(ipulse)*_ampvec.coeff(ipulse);
+    // std::cout << "     >>> ipulse = " << ipulse << "    ampsq = " << ampsq << std::endl;
     
     const unsigned int nsamplepulse = nsample-firstsamplet;    
     _invcov.block(firstsamplet,firstsamplet,nsamplepulse,nsamplepulse).triangularView<Eigen::Lower>() += ampsq*fullpulsecov.block(firstsamplet+offset,firstsamplet+offset,nsamplepulse,nsamplepulse);    
   }
-  
-  //  std::cout << " updateCov " << " here "  << std::endl;
+
+  // std::cout << " updateCov " << " here "  << std::endl;
+  //  std::cout << " invcov = " << std::endl << _invcov << std::endl;
   
   _covdecomp.compute(_invcov);
   
@@ -366,14 +383,14 @@ bool PulseChiSqSNNLS::NNLS() {
       //unconstrain parameter
       Index idxp = _nP + idxwmax;
       NNLSUnconstrainParameter(idxp);
-      //printf("adding index %i, orig index %i\n",int(idxp),int(_bxs.coeff(idxp)));
+      // std::cout << "adding index " << int(idxp) << " orig index " << int(_bxs.coeff(idxp)) << std::endl;
     }
     
     
     while (true) {
-      //printf("iter in, idxsP = %i\n",int(_idxsP.size()));
+      // std::cout << "iter in, _nP = " << _nP << std::endl;
       
-//       std::cout << " >>  iter = " << iter << std::endl;
+      // std::cout << " >>  iter = " << iter << std::endl;
       
       if (_nP==0) break;     
       
@@ -415,7 +432,7 @@ bool PulseChiSqSNNLS::NNLS() {
       //avoid numerical problems with later ==0. check
       _ampvec.coeffRef(minratioidx) = 0.;
       
-      //printf("removing index %i, orig idx %i\n",int(minratioidx),int(_bxs.coeff(minratioidx)));
+      // std::cout << "removing index " << int(minratioidx) << " orig idx " << int(_bxs.coeff(minratioidx)) << std::endl;
       NNLSConstrainParameter(minratioidx);      
     }
     ++iter;
@@ -426,7 +443,7 @@ bool PulseChiSqSNNLS::NNLS() {
     
   }
   
-//   std::cout << "     -> _ampvec = " << _ampvec << std::endl;
+  // std::cout << "     -> _ampvec = " << std::endl << _ampvec << std::endl;
   
   return true;
   
