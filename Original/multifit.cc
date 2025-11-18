@@ -6,6 +6,7 @@
 //
 
 #include <iostream>
+#include <TString.h>
 #include "PulseChiSqSNNLS.h"
 #include "Pulse.h"
 
@@ -84,7 +85,7 @@ void init()
 
 
 
-void run(std::string inputFile, std::string outFile)
+void run(std::string inputFile, std::string outFile, float sigmaNoiseScale=1, int fitPedestal=0)
 {
   
   TFile *file2 = new TFile(inputFile.c_str());
@@ -123,9 +124,8 @@ void run(std::string inputFile, std::string outFile)
   }
 
   double pedval = 0.;
-  double pedrms = 3*0.044;
+  double pedrms = sigmaNoiseScale*0.044;
 
-  bool fitPedestal = false;
   if (fitPedestal) gains = SampleGainVector::Zero(); // here decides n. pedestals to be fitted (1/gain)
   int ngains = gains.maxCoeff() + 1;
   for (int gainidx = 0; gainidx < ngains; ++gainidx) {
@@ -214,15 +214,27 @@ int main(int argc, char** argv) {
   if (argc>=2) {
     inputFile = argv[1];
   }
-  
-  std::string outFile = "output.root";
+
+  float sigmaNoiseScale = 1;
   if (argc>=3) {
-    outFile = argv[2];
+    sigmaNoiseScale = atof(argv[2]);
   }
-  
+
+  int fitPedestal = 0;
+  if (argc>=4) {
+    fitPedestal = atoi(argv[3]);
+  }
+
+  std::cout << " input file = " << inputFile << std::endl;
+  std::cout << " sigmaNoiseScale = "   << sigmaNoiseScale << std::endl;
+  std::cout << " fitPedestal = " << fitPedestal << std::endl;
+
+  TString outFile = Form("output_noisescale%.2f_fitPed%d.root",sigmaNoiseScale,fitPedestal);
+
+  std::cout << " output file = " << outFile.Data() << std::endl;
   
   init();
-  run(inputFile, outFile);
+  run(inputFile, outFile.Data(),sigmaNoiseScale,fitPedestal);
   return 0;
 }
 # endif
