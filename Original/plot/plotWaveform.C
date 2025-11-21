@@ -65,13 +65,13 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
  
  TCanvas* ccPulse = new TCanvas ("ccPulse","",800,600);
  ccPulse->SetGrid();
-
+ 
  TGraph *grPulse_signal = new TGraph();
  for(int i=0; i<nWF/2; i++){
    grPulse_signal->SetPoint(i, i/4., pulse_signal->at(nWF/2+i));
  }
-
- grPulse_signal->SetMarkerSize(0.2);
+ 
+ grPulse_signal->SetMarkerSize(0.4);
  grPulse_signal->SetMarkerStyle(kFullCircle);
  grPulse_signal->SetMarkerColor(kRed);
  grPulse_signal->SetLineColor(kRed);
@@ -81,8 +81,8 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
  for(int i=0; i<nWF/2; i++){
    grPulse_pileup->SetPoint(i, i/4., pileup_signal->at(nWF/2+i));
  }
-
- grPulse_pileup->SetMarkerSize(0.2);
+ 
+ grPulse_pileup->SetMarkerSize(0.4);
  grPulse_pileup->SetMarkerStyle(kFullDiamond);
  grPulse_pileup->SetMarkerColor(kOrange+4);
  grPulse_pileup->SetLineColor(kOrange+4);
@@ -111,6 +111,7 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
  grPulse->SetLineWidth(2);
 
  grPulse_signal->GetXaxis()->SetTitle("time [ns]");
+ grPulse_signal->GetYaxis()->SetTitle("amplitude [GeV]");
  grPulse_signal->GetXaxis()->SetRangeUser(0, (samples->size()-1) * NFREQ);
  grPulse_signal->GetYaxis()->SetRangeUser(-0.5, TMath::MaxElement(grPulse->GetN(),grPulse->GetY())*1.2);
  grPulse_signal->Draw("APL");
@@ -121,10 +122,10 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
  
  TLegend* leg = new TLegend(0.91,0.10,0.99,0.90);
 
- leg->AddEntry(grPulse_signal,"signal input","p");
- leg->AddEntry(grPulse_pileup,"pileup sum","p");
- leg->AddEntry(grPulse_noise,"noise input","p");
- leg->AddEntry(grPulse,"total","p");
+ leg->AddEntry(grPulse_signal,"signal","p");
+ leg->AddEntry(grPulse_pileup,"PU sum","pl");
+ leg->AddEntry(grPulse_noise,"noise","p");
+ leg->AddEntry(grPulse,"DIGIs","p");
  leg->Draw();
  
  ccPulse->SaveAs("ccpulse.pdf");
@@ -181,8 +182,9 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
  grPulseRecoAll->SetMarkerSize(1.5);
  grPulseRecoAll->SetMarkerStyle(kFullCircle);
  leg2->AddEntry(grPulseRecoAll,"Total","p");
+ grPulseRecoAll->GetYaxis()->SetTitle("amplitude [GeV]");
  grPulseRecoAll->GetXaxis()->SetTitle("time [ns]");
- grPulseRecoAll->GetXaxis()->SetRangeUser(0, samples->size() * NFREQ);
+ grPulseRecoAll->GetXaxis()->SetRangeUser(0, (samples->size()-1) * NFREQ);
  grPulseRecoAll->GetYaxis()->SetRangeUser(-0.5, TMath::MaxElement(grPulseRecoAll->GetN(),grPulseRecoAll->GetY())*1.2);
 
  grPulseRecoAll->Draw("APC");
@@ -191,9 +193,12 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
    grPulseReco[iBx]->Draw("PC");
  }
 
- /* grPulse->SetMarkerStyle(kFullTriangleUp); */
- /* grPulse->SetMarkerColor(kRed); */
- /* grPulse->Draw("PL"); */
+ grPulse->SetMarkerStyle(kFullTriangleUp);
+ grPulse->SetMarkerColor(kRed);
+ grPulse->Draw("PL");
+
+ leg2->AddEntry(grPulse,"Data","p");
+ leg2->AddEntry(grPulse_noise,"Noise","p");
  
  leg2->Draw();
 
