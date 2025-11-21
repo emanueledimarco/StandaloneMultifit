@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
   
   // pedestal shift in GeV
   float pedestal = 0.0;
-  
+
   
   
   char * wf_name;
@@ -115,7 +115,9 @@ int main(int argc, char** argv) {
   float distortion_sample_4 = 1.;
   if (argc>=14) distortion_sample_4 = atof(argv[13]);
   
-  
+  // randomize energy (from 0 to signalAmplitude)
+  int randomEnergy = 0;
+  if (argc>=15) randomEnergy = atoi(argv[14]);
   
   std::cout << " NSAMPLES = " << NSAMPLES << std::endl;
   std::cout << " NPRESAMPLES = " << NPRESAMPLES << std::endl;
@@ -131,7 +133,7 @@ int main(int argc, char** argv) {
   std::cout << " sigmaNoise = "   << sigmaNoise << std::endl;
   std::cout << " sigmaNoiseScale = "   << sigmaNoiseScale << std::endl;
   std::cout << " distortion_sample_4 = "   << distortion_sample_4 << std::endl;
-  
+  std::cout << " randomize energy (uniformly) in [0 - " << signalAmplitude << "]" << std::endl;
   
   
   Pulse pSh;
@@ -176,6 +178,11 @@ int main(int argc, char** argv) {
     Form("inputExternal/mysample_%d_%.3f_%.3f_%d_%.2f_%.2f_%.2f_%.3f_%.2f_%s_%.2f_slew_%.2f.root", 
          nEventsTotal, real_pulse_shift, pileup_shift, NSAMPLES, NFREQ, signalAmplitude, nPU, sigmaNoiseScale, puFactor, wf_name, pedestal, distortion_sample_4);
   }
+
+  if (randomEnergy) {
+    filenameOutput.ReplaceAll(".root","_FlatEnergy.root");
+  }
+  
   TFile *fileOut = new TFile(filenameOutput.Data(),"recreate");
   
   
@@ -281,6 +288,10 @@ int main(int argc, char** argv) {
     }
     
     // Add signal to the waveform
+    if (randomEnergy) {
+      signalTruth = signalAmplitude * rnd.Rndm();
+    }
+
     for (int iwf = 0; iwf < nWF; iwf++) {
       double t = iwf/4. - (WFLENGTH / 2.)/4. - NPRESAMPLES * NFREQ;
       pulse_signal.at(iwf) += signalTruth * pSh.fShape(t);
