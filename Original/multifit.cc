@@ -85,7 +85,10 @@ void init()
 
 
 
-void run(std::string inputFile, std::string outFile, float sigmaNoiseScale=1, int fitPedestal=0)
+void run(std::string inputFile, std::string outFile,
+	 float sigmaNoiseScale=1,
+	 int fitPedestal=0,
+	 int maxEvents=-1)
 {
   
   TFile *file2 = new TFile(inputFile.c_str());
@@ -150,6 +153,7 @@ void run(std::string inputFile, std::string outFile, float sigmaNoiseScale=1, in
 
   
   for(int ievt=0; ievt<nentries; ++ievt){
+    if (maxEvents>0 && ievt>=maxEvents) break;
     tree->GetEntry(ievt);
     for(int i=0; i<NSAMPLES; i++){
       amplitudes[i] = samples->at(i);
@@ -171,9 +175,10 @@ void run(std::string inputFile, std::string outFile, float sigmaNoiseScale=1, in
     // std::cout << " chi2 = " << chisq << std::endl;
     
     double aMax = status ? pulsefunc.X()[ipulseintime] : 0.;
-    //  double aErr = status ? pulsefunc.Errors()[ipulseintime] : 0.;
+    double aErr = status ? pulsefunc.Errors()[ipulseintime] : 0.;
     
     std::cout << " aMax = " << aMax << " amplitudeTruth = " << amplitudeTruth << "  chisq = " << chisq << std::endl;
+    // std::cout << " aErr = " << aErr << std::endl;
     
     for (unsigned int ipulse=0; ipulse<pulsefunc.BXs().rows(); ++ipulse) {
       int iReco = (int(pulsefunc.BXs().coeff(ipulse)));
@@ -225,16 +230,31 @@ int main(int argc, char** argv) {
     fitPedestal = atoi(argv[3]);
   }
 
+  char *suffix;
+  if (argc>=5) {
+    suffix = argv[4];
+  } else {
+    strcpy(suffix,"-");
+  }
+
+  int maxEvents = -1;
+  if (argc>=6) {
+    maxEvents = atoi(argv[5]);
+  }
+  
   std::cout << " input file = " << inputFile << std::endl;
   std::cout << " sigmaNoiseScale = "   << sigmaNoiseScale << std::endl;
   std::cout << " fitPedestal = " << fitPedestal << std::endl;
+  std::cout << " suffix = " << suffix << std::endl;
+  std::cout << " maxEvents = " << maxEvents << std::endl;
 
-  TString outFile = Form("output_noisescale%.2f_fitPed%d.root",sigmaNoiseScale,fitPedestal);
+  
+  TString outFile = Form("output_%s_noisescale%.2f_fitPed%d.root",suffix,sigmaNoiseScale,fitPedestal);
 
   std::cout << " output file = " << outFile.Data() << std::endl;
   
   init();
-  run(inputFile, outFile.Data(),sigmaNoiseScale,fitPedestal);
+  run(inputFile, outFile.Data(),sigmaNoiseScale,fitPedestal,maxEvents);
   return 0;
 }
 # endif
