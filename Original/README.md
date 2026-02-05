@@ -1,41 +1,47 @@
 Based on https://github.com/cms-eb-upgrade/vfe-toymc
 
+Compile
+====
+./configure, then make
+
+
 Create data
 ====
 
-    g++ -o CreateData  CreateData.cc -std=c++11 `root-config --cflags --glibs`
+    #   #argv              1                   2                3         4       5           6                   7              8             9              10              11               12               13                  14
+    #./CreateData   $temporal_shift   $number_of_events   $NSAMPLES   $NFREQ   $nPU   $signalAmplitude   $sigmaNoiseScale   $puFactor   $wf_name_string   $pu_shift   $noise-correlation   $pedestal   $slew-rate-distortion   $randomEnergy
 
-    ./CreateData     
-                        1                     2                  3            4        5           6                   7                 8           9              10              11               12              13                 14
-    ./CreateData   temporal_shift      number_of_events       NSAMPLES       NFREQ     nPU    signalAmplitude    sigmaNoiseScale     puFactor  wf_name_string    pu_shift     noise-correlation    pedestal  slew-rate-distortion  randomEnergy
-
-    ./CreateData        0                   11                  16           6.25       200         10                 1                 1      TestBeamPhase2        0             0.5                0.5
-    ./CreateData        0                   11                  16           6.25       200         10                 3                 2      TestBeamPhase2        0             0.5                0.0            0                  1
+    # examples
+     ./CreateData        0                    11              16        6.25    200         10                  3                2       TestBeamPhase2        0              0.5              0.0              0                    1
+    #./CreateData        0                    11              16        6.25    200         10                  1                1       TestBeamPhase2        0              0.5              0.5
 
 
-    ./CreateData   0        11    10     25     0     10    0         0      CRRC43     0    0.5       0
-    ./CreateData -13        11    10     25     0     10    0         0      CRRC43     0    0.5       0
-    ./CreateData -13        1     10     25     0     10    0         0      CRRC43     0    0.5       0
-    
+    #./CreateData   0        11    10     25     0     10    0         0      CRRC43     0    0.5       0
+    #./CreateData -13        11    10     25     0     10    0         0      CRRC43     0    0.5       0
+    #./CreateData -13        1     10     25     0     10    0         0      CRRC43     0    0.5       0
+
 Fit
 ====
 
-     g++ -o multifit multifit.cc PulseChiSqSNNLS.cc -I /opt/homebrew/Cellar/eigen/3.4.1/include/eigen3/ -std=c++11 `root-config --cflags --glibs` (compile on Mac)
-     g++ -o multifit multifit.cc PulseChiSqSNNLS.cc -std=c++11 `root-config --cflags --glibs` (compile on linux)
+    #   #argv        1              2                3             4            5
+    #./multifit   inputFile   sigmaNoiseScale   fitPedestal   outputSuffix   maxEvents
 
-                   input     output    NSAMPLES   NFREQ    time-shift (13 has to go for 0)      pedestal-shift
-    ./simple.multifit  input/mysample_11_-13.000_0.000_10_25.00_10.00_0.00_0.000_0.00_CRRC43_0.00.root       output/mysample_11_-13.000_0.000_10_25.00_10.00_0.00_0.000_0.00_CRRC43_0.00.root         10            25        13        0.0
+    input="inputExternal/mysample_11_0.000_0.000_16_6.25_10.00_200.00_1.000_1.00_TestBeamPhase2_0.50_slew_0.00_FlatEnergy.root"
 
-    ./simple.multifit  inputExternal/mysample_1_-13.000_0.000_10_25.00_10.00_0.00_0.000_0.00_CRRC43_0.00.root       output/mysample_1_-13.000_0.000_10_25.00_10.00_0.00_0.000_0.00_CRRC43_0.00.root   10            25        13        0.0
+     ./multifit     $input          1                1
 
-    
-    
 Plot
 ====
 
-    r99t  plot/plotPulseInput.C\(\"input/mysample_11_-13.000_0.000_10_25.00_10.00_0.00_0.000_0.00_CRRC43_0.00.root\"\)
-    r99t  plot/plotPulseInput.C\(\"input/mysample_100_-13.000_0.000_10_25.00_10.00_80.00_0.000_0.00_CRRC43_-1.00.root\"\)
-    
-    r99t  plot/plot.C\(\"output/mysample_11_-13.000_0.000_10_25.00_10.00_0.00_0.000_0.00_CRRC43_0.00.root\"\)
-    r99t plot/plotPulse.C\(\"output/mysample_11_-13.000_0.000_10_25.00_10.00_0.00_0.000_0.00_CRRC43_0.00.root\",2\)
-    r99t plot/plotPulse.C\(\"output/mysample_11_-13.000_0.000_10_25.00_10.00_0.00_0.000_0.00_CRRC43_0.00.root\",1\)
+     root  plot/plotPulseInput.C\(\"$input\"\)
+
+     output="output_-_noisescale1.00_fitPed1.root"
+
+    #root plot/plot.C\(\"$output\"\)
+
+    #                        fileName      treeName   nEvent
+     root plot/plotPulse.C\(\"$output\",\"RecoAndSim\", 1\)
+
+Example script
+===
+    source run.sh
