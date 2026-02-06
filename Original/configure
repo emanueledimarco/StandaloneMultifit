@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 # configure script (Linux/macOS) with mandatory Eigen
 
-set -e
-
 echo "Configuring project..."
 
 # ---------------------------
@@ -64,9 +62,8 @@ else
     fi
 fi
 
-# ---------------------------
+
 # Write config.mk
-# ---------------------------
 cat > config.mk <<EOL
 CXXFLAGS = -std=c++11 $ROOT_CFLAGS
 LDFLAGS = $ROOT_LIBS

@@ -107,13 +107,14 @@ void run(std::string inputFile, std::string outFile,
   newtree->SetName("RecoAndSim");
   
   float chisq;
-  std::vector <double> samplesReco;
+  std::vector <double> samplesReco, dtReco;
   std::vector <double> pedestalsReco;
   
   int ipulseintime = 0;
   int nBins = nTemplateBins;
   newtree->Branch("chi2",   &chisq, "chi2/F");
   newtree->Branch("samplesReco",   &samplesReco);
+  newtree->Branch("dtReco",   &dtReco);
   newtree->Branch("pedestalsReco",   &pedestalsReco);
   newtree->Branch("ipulseintime",  &ipulseintime,  "ipulseintime/I");
   newtree->Branch("activeBXs",     &activeBXs);
@@ -124,6 +125,7 @@ void run(std::string inputFile, std::string outFile,
 
   for (unsigned int ibx=0; ibx<totalNumberOfBxActive; ++ibx) {
     samplesReco.push_back(0.);
+    dtReco.push_back(0.);
   }
 
   double pedval = 0.;
@@ -151,7 +153,6 @@ void run(std::string inputFile, std::string outFile,
   pulsefunc.setMaxShift(maxshift);
   pulsefunc.disableErrorCalculation();
 
-  
   for(int ievt=0; ievt<nentries; ++ievt){
     if (maxEvents>0 && ievt>=maxEvents) break;
     tree->GetEntry(ievt);
@@ -161,9 +162,9 @@ void run(std::string inputFile, std::string outFile,
 
     bool status = pulsefunc.DoFit(amplitudes,noisecor,pedrms,activeBX,fullpulse,fullpulsecov,gains);
     chisq = pulsefunc.ChiSq();
-    
-    for (unsigned int ipulse=0; ipulse<pulsefunc.BXs().rows(); ++ipulse) {
-      if (pulsefunc.BXs().coeff(ipulse)==0) {
+
+    for (unsigned int ipulse=0; ipulse<totalNumberOfBxActive; ++ipulse) {
+      if (pulsefunc.BXs().coeff(2*ipulse)==0) {
         ipulseintime = ipulse;
         break;
       }
@@ -173,38 +174,38 @@ void run(std::string inputFile, std::string outFile,
     // std::cout << " pulsefunc.X() = " << std::endl << pulsefunc.X() << std::endl;
     // std::cout << " status = " << status << std::endl;
     // std::cout << " chi2 = " << chisq << std::endl;
-    
-    double aMax = status ? pulsefunc.X()[ipulseintime] : 0.;
-    double aErr = status ? pulsefunc.Errors()[ipulseintime] : 0.;
-    
+
+    double aMax = status ? pulsefunc.X()[2*ipulseintime] : 0.;
+    double aErr = status ? pulsefunc.Errors()[2*ipulseintime] : 0.;
+
     std::cout << " aMax = " << aMax << " amplitudeTruth = " << amplitudeTruth << "  chisq = " << chisq << std::endl;
     // std::cout << " aErr = " << aErr << std::endl;
-    
-    for (unsigned int ipulse=0; ipulse<pulsefunc.BXs().rows(); ++ipulse) {
-      int iReco = (int(pulsefunc.BXs().coeff(ipulse)));
-      if (status) {
-        if (abs(iReco)<100) { 
-          //          std::cout << "\t ipulse = " << ipulse << " idx = " << iReco << "  ampli = " << pulsefunc.X()[ ipulse ] << std::endl;
-          samplesReco[iReco - minBX] = pulsefunc.X()[ ipulse ];
-        } else if (iReco>=100) {
-          std::cout << "pedestal[" << iReco-100 << "] = " << pulsefunc.X()[ ipulse ] << std::endl;
-          pedestalsReco[iReco-100] = pulsefunc.X()[ ipulse ];
-        } else {
-          std::cout << " idx < 0 is for bad sample (e.g. slew rate). This should not happen, not turned on yet" << std::endl;
+
+    std::cout << "pulsefunc.BXs().rows(): " << pulsefunc.BXs().rows() << ", ipulseintime: " << ipulseintime << std::endl;
+
+    for (unsigned int ipulse=0; ipulse<2*totalNumberOfBxActive+1; ++ipulse) {
+        int iReco = (int)pulsefunc.BXs().coeff(ipulse);
+        std::cout << "iReco: " << iReco << ", minBX: " << minBX << std::endl;
+        if (status) {
+                if (iReco > 100) pedestalsReco[0] = pulsefunc.X()[ipulse];
+                std::cout << "ipulse: " << ipulse << std::endl;
+                if ((ipulse % 2) == 0) {
+                    samplesReco[iReco - minBX] = pulsefunc.X()[ipulse];
+                    std::cout << "samplesReco[" << iReco - minBX << "]: " << samplesReco[iReco - minBX] << std::endl;
+                }
+                else if ((ipulse % 2) == 1) {
+                    dtReco[iReco - minBX] = pulsefunc.X()[ipulse] / samplesReco[iReco - minBX];  // dt = derivative / amplitude
+                }
         }
-      } else {
-        if (iReco>=0 && iReco<100) {
-          samplesReco[iReco - minBX] = -1;
-        } else if (iReco>=100) {
-          pedestalsReco[iReco-100] = -1;
-        } else {
-          std::cout << " idx < 0 is for bad sample (e.g. slew rate). This should not happen, not turned on yet" << std::endl;          
-        }
-      }
     }
-    
+
+    for(int i=0; i<6; i++){
+      std::cout << "samplesReco[" << i << "]: " << samplesReco[i] << std::endl;
+    }
+
+
     newtree->Fill();
-    
+
   }
 
   newtree->Write();
@@ -258,5 +259,4 @@ int main(int argc, char** argv) {
   return 0;
 }
 # endif
-
 
