@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# configure script (Linux/macOS) with mandatory Eigen
+
+set -e
+
+echo "Configuring project..."
+
+# ---------------------------
+# Check for ROOT
+# ---------------------------
+if command -v root-config >/dev/null 2>&1; then
+    ROOT_CFLAGS=$(root-config --cflags)
+    ROOT_LIBS=$(root-config --glibs)
+    echo "Found ROOT."
+else
+    echo "Error: ROOT not found. Please install ROOT or add it to your PATH."
+    exit 1
+fi
+
+# ---------------------------
+# Check if user passed EIGEN_PATH
+# ---------------------------
+if [ -n "$EIGEN_PATH" ]; then
+    if [ -d "$EIGEN_PATH" ]; then
+        echo "Using user-provided Eigen path: $EIGEN_PATH"
+    else
+        echo "Error: Provided EIGEN_PATH ($EIGEN_PATH) does not exist."
+        exit 1
+    fi
+else
+    # Try to find Eigen automatically
+    EIGEN_PATH=""
+
+    # pkg-config first
+    if command -v pkg-config >/dev/null 2>&1; then
+        if pkg-config --exists eigen3; then
+            EIGEN_PATH=$(pkg-config --cflags-only-I eigen3 | sed 's/-I//')
+            echo "Found Eigen via pkg-config at $EIGEN_PATH"
+        fi
+    fi
+
+    # fallback common paths
+    if [ -z "$EIGEN_PATH" ]; then
+        COMMON_PATHS=(
+            /usr/include/eigen3
+            /usr/local/include/eigen3
+            /opt/homebrew/include/eigen3
+            /opt/local/include/eigen3
+        )
+        for path in "${COMMON_PATHS[@]}"; do
+            if [ -d "$path" ]; then
+                EIGEN_PATH=$path
+                echo "Found Eigen at $EIGEN_PATH"
+                break
+            fi
+        done
+    fi
+
+    # If still not found, fail
+    if [ -z "$EIGEN_PATH" ]; then
+        echo "Error: Eigen3 not found. Please specify the path via:"
+        echo "  ./configure EIGEN_PATH=/path/to/eigen3"
+        exit 1
+    fi
+fi
+
+# ---------------------------
+# Write config.mk
+# ---------------------------
+cat > config.mk <<EOL
+CXXFLAGS = -std=c++11 $ROOT_CFLAGS
+LDFLAGS = $ROOT_LIBS
+EIGEN_PATH = $EIGEN_PATH
+EOL
+
+echo "Configuration complete. You can now run 'make'."
