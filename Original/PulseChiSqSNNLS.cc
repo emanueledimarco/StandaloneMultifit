@@ -410,7 +410,7 @@ bool PulseChiSqSNNLS::NNLS() {
   const unsigned int npulse = _bxs.rows();
 
   //Fast NNLS (fnnls) algorithm as per http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.157.9203&rep=rep1&type=pdf
-  
+
   SamplePulseMatrix invcovp = _covdecomp.matrixL().solve(_pulsemat);
   aTamat.triangularView<Eigen::Lower>() = invcovp.transpose()*invcovp;
   aTamat = aTamat.selfadjointView<Eigen::Lower>();
@@ -481,7 +481,7 @@ bool PulseChiSqSNNLS::NNLS() {
       double minratio = std::numeric_limits<double>::max();
       for (unsigned int ipulse=0; ipulse<_nP; ++ipulse) {
         if (ampvecpermtest.coeff(ipulse)<=0.) {
-	  const double c_ampvec = _ampvec.coeff(ipulse);
+      	  const double c_ampvec = _ampvec.coeff(ipulse);
           const double ratio = c_ampvec/(c_ampvec - ampvecpermtest.coeff(ipulse));
           if (ratio<minratio) {
             minratio = ratio;
