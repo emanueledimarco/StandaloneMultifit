@@ -3,13 +3,13 @@ include config.mk
 
 CXX = g++ -g -O0
 
-all: CreateData multifit
+all: CreateData.x multifit.x
 
-CreateData: CreateData.cc
+CreateData.x: CreateData.cc
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
-multifit: multifit.cc PulseChiSqSNNLS.cc
+multifit.x: multifit.cc PulseChiSqSNNLS.cc
 	$(CXX) $(CXXFLAGS) -I $(EIGEN_PATH) -o $@ $^ $(LDFLAGS)
 
 clean:
-	rm -f CreateData multifit
+	rm -f CreateData.x multifit.x
