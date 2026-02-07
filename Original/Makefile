@@ -1,7 +1,7 @@
 # Makefile using config.mk
 include config.mk
 
-CXX = g++
+CXX = g++ -g -O0
 
 all: CreateData multifit
 

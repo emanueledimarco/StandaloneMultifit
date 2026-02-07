@@ -19,6 +19,7 @@ public:
 	     double pederr,
 	     const BXVector &bxs,
 	     const FullSampleVector &fullpulse,
+       const FullSampleVector &fullpulse_deriv,
 	     const FullSampleMatrix &fullpulsecov,
 	     const SampleGainVector &gains = -1 * SampleGainVector::Ones(),
 	     const SampleGainVector &badSamples = SampleGainVector::Zero());
@@ -46,11 +47,13 @@ protected:
   bool updateCov(const SampleMatrix &samplecor, double pederr, const FullSampleMatrix &fullpulsecov);
   double ComputeChiSq();
   double ComputeApproxUncertainty(unsigned int ipulse);
-  
+
+  void TimingSignalRefit();
   
   SampleVector _sampvec;
   SampleMatrix _invcov;
   SamplePulseMatrix _pulsemat;
+  SamplePulseMatrix _pulsemat_t;
   PulseVector _ampvec;
   PulseVector _errvec;
   PulseVector _ampvecmin;
@@ -68,7 +71,12 @@ protected:
   PulseVector updatework;
 
   PulseVector ampvecpermtest;
-  
+
+  // timing
+  Eigen::VectorXd _time;        // Δt parameters (size = nPulses)
+  Eigen::VectorXd _timeErr;
+  Eigen::VectorXi _timeActive;  // 1 = free, 0 = fixed (pileup)
+
   double _chisq;
   double _deltachisq;
   bool _computeErrors;

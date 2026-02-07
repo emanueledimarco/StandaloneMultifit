@@ -27,6 +27,7 @@ float templateCovariance[NSAMPLES][NSAMPLES];
 std::vector<int> activeBXs = { -3, -2, -1,  0,  1,  2 };
 
 FullSampleVector fullpulse(FullSampleVector::Zero());
+FullSampleVector fullpulse_deriv(FullSampleVector::Zero());
 FullSampleMatrix fullpulsecov(FullSampleMatrix::Zero());
 SampleMatrix noisecor(SampleMatrix::Zero());
 BXVector activeBX;
@@ -45,7 +46,7 @@ void init()
   for(int i=0; i<nTemplateBins; i++){
     
     //     double x = double( IDSTART + NFREQ * (i + 3) - WFLENGTH / 2);
-    double x = double( NFREQ * i );    
+    double x = double( NFREQ * i );
     pulseShapeTemplate[i] = pSh.fShape(x);
     
   }
@@ -54,9 +55,17 @@ void init()
   // distance from min early BX (-4) to max late BX (+2) = 4*NFREQ + 16 + 2*NFREQ = 40 (NFREQ=4, fullpulse length) (if min early BX =-3 then 3*4 + 16 + 2*4 = 36)
   // shift from min early BX (-4) to first pulse sample (5) = 5 + 4 = 0
   for (int i=0; i<nTemplateBins; ++i) fullpulse(i+14) = pulseShapeTemplate[i];
-    
-  // std::cout << " initialized fullpulse = " << std::endl << fullpulse << std::endl;
 
+  for (int i = 0; i < nTemplateBins; ++i) {
+    double x  = NFREQ * i;
+    double dp = pSh.fShape(x + 0.5);
+    double dm = pSh.fShape(x - 0.5);
+    fullpulse_deriv(i + 14) = (dp - dm);
+  }
+
+  //std::cout << " initialized fullpulse = " << std::endl << fullpulse << std::endl;
+  //std::cout << " initialized fullpulse_deriv = " << std::endl << fullpulse_deriv << std::endl;
+  
   for(int i=0; i<NSAMPLES; i++) {
     for(int j=0; j<NSAMPLES; j++) {
       templateCovariance[i][j] = pSh.fCov(i,j);
@@ -159,7 +168,7 @@ void run(std::string inputFile, std::string outFile,
       amplitudes[i] = samples->at(i);
     }
 
-    bool status = pulsefunc.DoFit(amplitudes,noisecor,pedrms,activeBX,fullpulse,fullpulsecov,gains);
+    bool status = pulsefunc.DoFit(amplitudes,noisecor,pedrms,activeBX,fullpulse,fullpulse_deriv,fullpulsecov,gains);
     chisq = pulsefunc.ChiSq();
     
     for (unsigned int ipulse=0; ipulse<pulsefunc.BXs().rows(); ++ipulse) {

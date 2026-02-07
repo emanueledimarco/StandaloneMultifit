@@ -72,6 +72,7 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
 			    double pederr,
 			    const BXVector &bxs,
 			    const FullSampleVector &fullpulse,
+          const FullSampleVector &fullpulse_deriv,
 			    const FullSampleMatrix &fullpulsecov,
 			    const SampleGainVector &gains,
 			    const SampleGainVector &badSamples) {
@@ -82,7 +83,8 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
   _sampvec = samples;
   _bxs = bxs;
   _pulsemat.resize(Eigen::NoChange, npulse);
-  
+  _pulsemat_t.resize(Eigen::NoChange, npulse);
+
   //construct dynamic pedestals if applicable
   int ngains = gains.maxCoeff() + 1;
   int nPedestals = 0;
@@ -94,6 +96,7 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
       _bxs.resize(npulse + nPedestals);
       _bxs[npulse + nPedestals - 1] = 100 + gainidx;  //bx values >=100 indicate dynamic pedestals
       _pulsemat.resize(Eigen::NoChange, npulse + nPedestals);
+       _pulsemat_t.resize(Eigen::NoChange, npulse + nPedestals);
       _pulsemat.col(npulse + nPedestals - 1) = pedestal;
     }
   }
@@ -110,6 +113,7 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
       _bxs[npulse + nPedestals - 1] =
           -100 - isample;  //bx values <=-100 indicate step corrections for saturated or slew-limited samples
       _pulsemat.resize(Eigen::NoChange, npulse + nPedestals);
+      _pulsemat_t.resize(Eigen::NoChange, npulse + nPedestals);
       _pulsemat.col(npulse + nPedestals - 1) = step;
     }
   }
@@ -124,12 +128,36 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
   
   aTamat.resize(_npulsetot, _npulsetot);
 
+
+  _time      = PulseVector::Zero(_npulsetot);  // Δt = 0 for all pulses initially
+  _timeErr   = PulseVector::Zero(_npulsetot);
+  _timeActive = Eigen::VectorXi::Zero(_npulsetot); // default all inactive
+
+  // mark active pulses (signal in-time)
+  for (unsigned int ipulse=0; ipulse<_bxs.rows(); ++ipulse) {
+      int bx = _bxs.coeff(ipulse);
+      if (bx == 0) {
+          _timeActive(ipulse) = 1; // in-time pulse is free
+      } else if (bx >= 100) {
+          _timeActive(ipulse) = 0; // pedestal pulses fixed
+      } else {
+          _timeActive(ipulse) = 0; // pileup pulses fixed
+      }
+}
+
   //initialize pulse template matrix
   for (unsigned int ipulse=0; ipulse<npulse; ++ipulse) {
     int bx = _bxs.coeff(ipulse);
     int firstsamplet = std::max(0,bx * int(25./_NFREQ) + _npresamples);
     int offset = _maxshift - _npresamples - bx*int(25./_NFREQ);
     _pulsemat.col(ipulse) = fullpulse.segment<SampleVector::RowsAtCompileTime>(offset);
+    _pulsemat_t.col(ipulse) = fullpulse_deriv.segment<SampleVector::RowsAtCompileTime>(offset);
+
+  }
+
+  for (unsigned int ipulse=0; ipulse<npulse; ++ipulse) {
+    //std::cout << "pulsemat at ipulse = " << ipulse << ": " << _pulsemat.col(ipulse) << std::endl;
+    //std::cout << "pulsemat_t at ipulse = " << ipulse << ": " << _pulsemat_t.col(ipulse) << std::endl;
   }
 
   // std::cout << "pulsemat after pedestal + bad samples additions = " << std::endl << _pulsemat << std::endl;
@@ -187,6 +215,7 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
   //move in time pulse first to active set if necessary
   if (ipulseintime<_nP) {
     _pulsemat.col(_nP-1).swap(_pulsemat.col(ipulseintime));
+    _pulsemat_t.col(_nP-1).swap(_pulsemat_t.col(ipulseintime));
     std::swap(_ampvec.coeffRef(_nP-1),_ampvec.coeffRef(ipulseintime));
     std::swap(_bxs.coeffRef(_nP-1),_bxs.coeffRef(ipulseintime));
     ipulseintime = _nP - 1;
@@ -281,10 +310,112 @@ bool PulseChiSqSNNLS::Minimize(const SampleMatrix &samplecor, double pederr, con
     
     ++iter;    
   }  
-  
-  return status;  
+
+
+  TimingSignalRefit();
+
+  return status;
 
 }
+
+void PulseChiSqSNNLS::TimingSignalRefit() {
+
+    // -------------------------
+    // Identify in-time pulse
+    // -------------------------
+    unsigned int ipulseSignal = 0;
+    bool foundSignal = false;
+    for (unsigned int ip = 0; ip < _bxs.rows(); ++ip) {
+        if (_bxs.coeff(ip) == 0) {
+            ipulseSignal = ip;
+            foundSignal = true;
+            break;
+        }
+    }
+    if (!foundSignal) return;
+
+    // -------------------------
+    // Build residual including all other pulses
+    // -------------------------
+    SampleVector res = _sampvec;
+    for (unsigned int ip = 0; ip < _bxs.rows(); ++ip) {
+        if (ip != ipulseSignal) res -= _ampvec.coeff(ip) * _pulsemat.col(ip);
+    }
+
+    // -------------------------
+    // Design matrix for active fit: columns = [P, P']
+    // -------------------------
+    Eigen::Matrix<double, SampleVector::RowsAtCompileTime, 2> M;
+    M.col(0) = _pulsemat.col(ipulseSignal);
+    M.col(1) = _pulsemat_t.col(ipulseSignal);
+
+    // -------------------------
+    // BVLS / NNLS 2D solve
+    // -------------------------
+    Eigen::Vector2d x = Eigen::Vector2d::Zero();       // solution [A, C]
+    bool activeA = false;
+    bool activeC_upper = false;
+    bool activeC_lower = false;
+
+    const int maxIter = 10;
+    for (int iter = 0; iter < maxIter; ++iter) {
+
+        // Solve unconstrained LS on free variables
+        Eigen::MatrixXd M_free( SampleVector::RowsAtCompileTime, 2 );
+        Eigen::Vector2d x_free;
+
+        int nFree = 0;
+        Eigen::MatrixXd M_sub( SampleVector::RowsAtCompileTime, 0 );
+        Eigen::Vector2d rhs_sub;
+        std::vector<int> freeIdx;
+
+        if (!activeA) freeIdx.push_back(0);
+        if (!activeC_upper && !activeC_lower) freeIdx.push_back(1);
+
+        nFree = int(freeIdx.size());
+        if (nFree == 0) break; // all active, solution fixed
+
+        M_sub.resize( SampleVector::RowsAtCompileTime, nFree );
+        for (int j=0; j<nFree; ++j) M_sub.col(j) = M.col(freeIdx[j]);
+
+        // Solve unconstrained on free subset
+        Eigen::VectorXd rhs = _covdecomp.matrixL().solve(res);
+        Eigen::VectorXd M_rhs = M_sub.transpose() * rhs;
+        Eigen::MatrixXd M_mat = M_sub.transpose() * _covdecomp.matrixL().solve(M_sub);
+
+        Eigen::VectorXd xsol = M_mat.ldlt().solve(M_rhs);
+
+        // Assign back to x
+        for (int j=0; j<nFree; ++j) x(freeIdx[j]) = xsol(j);
+
+        // -------------------------
+        // Check constraints
+        // -------------------------
+        bool violated = false;
+
+        if (x(0) < 0.) { x(0) = 0.; activeA = true; violated = true; }
+        double Cmin = -3.0 * x(0);
+        double Cmax =  3.0 * x(0);
+        if (x(1) < Cmin) { x(1) = Cmin; activeC_lower = true; violated = true; }
+        if (x(1) > Cmax) { x(1) = Cmax; activeC_upper = true; violated = true; }
+
+        if (!violated) break; // solution feasible
+    }
+
+    // -------------------------
+    // Store results
+    // -------------------------
+    _ampvec.coeffRef(ipulseSignal) = x(0);
+    _time.coeffRef(ipulseSignal) = - x(1) / x(0); // Δt = -C / A
+
+    // update χ²
+    _chisq = ComputeChiSq();
+
+    std::cout << "TimingSignalRefit -> A = " << _ampvec[ipulseSignal]
+              << ", Δt = " << _time[ipulseSignal] << std::endl;
+}
+
+
 
 bool PulseChiSqSNNLS::updateCov(const SampleMatrix &samplecor, double pederr, const FullSampleMatrix &fullpulsecov) {
   
@@ -326,12 +457,17 @@ bool PulseChiSqSNNLS::updateCov(const SampleMatrix &samplecor, double pederr, co
 }
 
 double PulseChiSqSNNLS::ComputeChiSq() {
-  
-  //   SampleVector resvec = _pulsemat*_ampvec - _sampvec;
-  //   return resvec.transpose()*_covdecomp.solve(resvec);
-  
-  return _covdecomp.matrixL().solve(_pulsemat*_ampvec - _sampvec).squaredNorm();
-  
+
+    SampleVector model = _pulsemat*_ampvec;
+
+    // add timing shifts
+    for (unsigned int ipulse=0; ipulse<_bxs.rows(); ++ipulse) {
+        if (_timeActive(ipulse)) {
+            model += _time(ipulse) * _pulsemat_t.col(ipulse);
+        }
+    }
+
+    return _covdecomp.matrixL().solve(model - _sampvec).squaredNorm(); 
 }
 
 double PulseChiSqSNNLS::ComputeApproxUncertainty(unsigned int ipulse) {
@@ -454,6 +590,7 @@ void PulseChiSqSNNLS::NNLSUnconstrainParameter(Index idxp) {
   aTamat.col(_nP).swap(aTamat.col(idxp));
   aTamat.row(_nP).swap(aTamat.row(idxp));
   _pulsemat.col(_nP).swap(_pulsemat.col(idxp));
+  _pulsemat_t.col(_nP).swap(_pulsemat_t.col(idxp));
   std::swap(aTbvec.coeffRef(_nP), aTbvec.coeffRef(idxp));
   std::swap(_ampvec.coeffRef(_nP), _ampvec.coeffRef(idxp));
   std::swap(_bxs.coeffRef(_nP), _bxs.coeffRef(idxp));
@@ -464,6 +601,7 @@ void PulseChiSqSNNLS::NNLSConstrainParameter(Index minratioidx) {
   aTamat.col(_nP - 1).swap(aTamat.col(minratioidx));
   aTamat.row(_nP - 1).swap(aTamat.row(minratioidx));
   _pulsemat.col(_nP - 1).swap(_pulsemat.col(minratioidx));
+   _pulsemat_t.col(_nP - 1).swap(_pulsemat_t.col(minratioidx));
   std::swap(aTbvec.coeffRef(_nP - 1), aTbvec.coeffRef(minratioidx));
   std::swap(_ampvec.coeffRef(_nP - 1), _ampvec.coeffRef(minratioidx));
   std::swap(_bxs.coeffRef(_nP - 1), _bxs.coeffRef(minratioidx));
