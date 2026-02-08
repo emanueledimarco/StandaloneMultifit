@@ -116,13 +116,14 @@ void run(std::string inputFile, std::string outFile,
   newtree->SetName("RecoAndSim");
   
   float chisq;
-  std::vector <double> samplesReco;
+  std::vector <double> samplesReco, timeReco;
   std::vector <double> pedestalsReco;
   
   int ipulseintime = 0;
   int nBins = nTemplateBins;
   newtree->Branch("chi2",   &chisq, "chi2/F");
   newtree->Branch("samplesReco",   &samplesReco);
+  newtree->Branch("timeReco",   &timeReco);
   newtree->Branch("pedestalsReco",   &pedestalsReco);
   newtree->Branch("ipulseintime",  &ipulseintime,  "ipulseintime/I");
   newtree->Branch("activeBXs",     &activeBXs);
@@ -133,6 +134,7 @@ void run(std::string inputFile, std::string outFile,
 
   for (unsigned int ibx=0; ibx<totalNumberOfBxActive; ++ibx) {
     samplesReco.push_back(0.);
+    timeReco.push_back(0.);
   }
 
   double pedval = 0.;
@@ -185,6 +187,7 @@ void run(std::string inputFile, std::string outFile,
     
     double aMax = status ? pulsefunc.X()[ipulseintime] : 0.;
     double aErr = status ? pulsefunc.Errors()[ipulseintime] : 0.;
+    double time = status ? pulsefunc.T()[ipulseintime] : 0.;
     
     std::cout << " aMax = " << aMax << " amplitudeTruth = " << amplitudeTruth << "  chisq = " << chisq << std::endl;
     // std::cout << " aErr = " << aErr << std::endl;
@@ -195,6 +198,7 @@ void run(std::string inputFile, std::string outFile,
         if (abs(iReco)<100) { 
           //          std::cout << "\t ipulse = " << ipulse << " idx = " << iReco << "  ampli = " << pulsefunc.X()[ ipulse ] << std::endl;
           samplesReco[iReco - minBX] = pulsefunc.X()[ ipulse ];
+          timeReco[iReco - minBX] = pulsefunc.T()[ ipulse ];
         } else if (iReco>=100) {
           std::cout << "pedestal[" << iReco-100 << "] = " << pulsefunc.X()[ ipulse ] << std::endl;
           pedestalsReco[iReco-100] = pulsefunc.X()[ ipulse ];
@@ -204,6 +208,7 @@ void run(std::string inputFile, std::string outFile,
       } else {
         if (iReco>=0 && iReco<100) {
           samplesReco[iReco - minBX] = -1;
+          timeReco[iReco - minBX] = -1;
         } else if (iReco>=100) {
           pedestalsReco[iReco-100] = -1;
         } else {

@@ -30,7 +30,9 @@ public:
   const PulseVector &X() const { return _ampvecmin; }
   const PulseVector &Errors() const { return _errvec; }
   const BXVector &BXs() const { return _bxsmin; }
-  
+
+  const PulseVector &T() const { return _time; }
+
   double ChiSq() const { return _chisq; }
   void disableErrorCalculation() { _computeErrors = false; }
   void setNPresamples(int samples) { _npresamples = samples; }
@@ -73,8 +75,8 @@ protected:
   PulseVector ampvecpermtest;
 
   // timing
-  Eigen::VectorXd _time;        // Δt parameters (size = nPulses)
-  Eigen::VectorXd _timeErr;
+  PulseVector _time;        // Δt parameters (size = nPulses)
+  PulseVector _timeErr;
   Eigen::VectorXi _timeActive;  // 1 = free, 0 = fixed (pileup)
 
   double _chisq;

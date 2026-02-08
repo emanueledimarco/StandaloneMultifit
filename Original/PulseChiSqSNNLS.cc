@@ -350,7 +350,7 @@ void PulseChiSqSNNLS::TimingSignalRefit() {
     M.col(1) = _pulsemat_t.col(ipulseSignal);
 
     // -------------------------
-    // BVLS / NNLS 2D solve
+    // NNLS 2D solve
     // -------------------------
     Eigen::Vector2d x = Eigen::Vector2d::Zero();       // solution [A, C]
     bool activeA = false;
