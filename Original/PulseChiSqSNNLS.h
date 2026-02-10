@@ -23,10 +23,11 @@ public:
 	     const FullSampleMatrix &fullpulsecov,
 	     const SampleGainVector &gains = -1 * SampleGainVector::Ones(),
 	     const SampleGainVector &badSamples = SampleGainVector::Zero());
-  
+
   const SamplePulseMatrix &pulsemat() const { return _pulsemat; }
   const SampleMatrix &invcov() const { return _invcov; }
-  
+  const SampleVector &NormRes() const {return _normResVec; }
+  const SampleVector &AbsRes() const {return _absResVec; }
   const PulseVector &X() const { return _ampvecmin; }
   const PulseVector &Errors() const { return _errvec; }
   const BXVector &BXs() const { return _bxsmin; }
@@ -52,7 +53,7 @@ protected:
 
   void TimingSignalRefit();
   
-  SampleVector _sampvec;
+  SampleVector _sampvec, _normResVec, _absResVec;
   SampleMatrix _invcov;
   SamplePulseMatrix _pulsemat;
   SamplePulseMatrix _pulsemat_t;

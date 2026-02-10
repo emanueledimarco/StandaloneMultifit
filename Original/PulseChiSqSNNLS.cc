@@ -12,7 +12,7 @@ _maxshift(7)
 {
   
   Eigen::initParallel();
-  
+  _invcov.setZero();
 }  
 
 PulseChiSqSNNLS::~PulseChiSqSNNLS() {
@@ -79,8 +79,12 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
   
   const unsigned int nsample = SampleVector::RowsAtCompileTime;
   const unsigned int npulse = bxs.rows();
-  
+
   _sampvec = samples;
+
+  _normResVec = SampleVector::Zero();
+  _absResVec = SampleVector::Zero();
+
   _bxs = bxs;
   _pulsemat.resize(Eigen::NoChange, npulse);
   _pulsemat_t.resize(Eigen::NoChange, npulse);
@@ -229,7 +233,7 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
   //two point interpolation for upper uncertainty when amplitude is away from boundary
   double xplus100 = x0 + approxerr;
   _ampvec.coeffRef(ipulseintime) = xplus100;
-  _sampvec = samples - _ampvec.coeff(ipulseintime)*pulseintime;  
+  _sampvec = samples - _ampvec.coeff(ipulseintime)*pulseintime;
 
   status &= Minimize(samplecor,pederr,fullpulsecov);
   if (!status) return status;
@@ -425,9 +429,11 @@ bool PulseChiSqSNNLS::updateCov(const SampleMatrix &samplecor, double pederr, co
   const unsigned int npulse = _bxs.rows();
 
   // std::cout << "_bxs = " << std::endl << _bxs << "   npulse = " << npulse << std::endl;
-  
+
   _invcov.triangularView<Eigen::Lower>() = (pederr*pederr)*samplecor;
-  
+
+  std::cout << " invcov (only noise) = " << std::endl << _invcov << std::endl;
+
   for (unsigned int ipulse=0; ipulse<npulse; ++ipulse) {
     if (_ampvec.coeff(ipulse)==0.) continue;
     int bx = _bxs.coeff(ipulse);
@@ -436,20 +442,45 @@ bool PulseChiSqSNNLS::updateCov(const SampleMatrix &samplecor, double pederr, co
 
     int firstsamplet = std::max(0,bx * int(25./_NFREQ) + _npresamples);
     int offset = _maxshift - _npresamples - bx*int(25./_NFREQ);
-    
+
     double ampsq = _ampvec.coeff(ipulse)*_ampvec.coeff(ipulse);
     // std::cout << "     >>> ipulse = " << ipulse << "    ampsq = " << ampsq << std::endl;
-    
-    const unsigned int nsamplepulse = nsample-firstsamplet;    
-    _invcov.block(firstsamplet,firstsamplet,nsamplepulse,nsamplepulse).triangularView<Eigen::Lower>() += ampsq*fullpulsecov.block(firstsamplet+offset,firstsamplet+offset,nsamplepulse,nsamplepulse);    
+    const unsigned int nsamplepulse = nsample-firstsamplet;
+
+    const auto &block_allocated = fullpulsecov.block(firstsamplet+offset,firstsamplet+offset,nsamplepulse,nsamplepulse);
+
+    // Symmetrize just in case
+    //Eigen::MatrixXd block_sym = block_allocated.template triangularView<Eigen::Lower>();
+    //block_sym = block_sym + block_sym.transpose().triangularView<Eigen::StrictlyUpper>();
+
+    std::cout << "block_allocated: " << block_allocated << std::endl;
+
+    // Try LLT to check PD
+    Eigen::LLT<Eigen::MatrixXd> llt(block_allocated);
+    if (llt.info() == Eigen::NumericalIssue) {
+        std::cout << "WARNING: pulse block not PD" << std::endl;
+    }
+
+    _invcov.block(firstsamplet,firstsamplet,nsamplepulse,nsamplepulse).triangularView<Eigen::Lower>() += ampsq*block_allocated;
   }
 
   // std::cout << " updateCov " << " here "  << std::endl;
-  //  std::cout << " invcov = " << std::endl << _invcov << std::endl;
-  
-  _covdecomp.compute(_invcov);
-  
-  //  std::cout << " updateCov " << " done "  << std::endl;
+  std::cout << " invcov after adding pulse covariance= " << std::endl << _invcov << std::endl;
+
+
+  _invcov.triangularView<Eigen::Upper>() =
+    _invcov.transpose().triangularView<Eigen::Upper>();
+
+
+
+   // Quick PD check via LLT
+   Eigen::LLT<SampleMatrix> llt(_invcov);
+   if (llt.info() == Eigen::NumericalIssue) {
+      std::cout << "WARNING: _invcov not PD" << std::endl;
+   }
+
+   _covdecomp.compute(_invcov);
+    //  std::cout << " updateCov " << " done "  << std::endl;
   
   bool status = true;
   return status;
@@ -467,7 +498,16 @@ double PulseChiSqSNNLS::ComputeChiSq() {
         }
     }
 
-    return _covdecomp.matrixL().solve(model - _sampvec).squaredNorm(); 
+    std::cout << "_invcov at chi2 / residuals step: " << std::endl << _invcov << std::endl;
+
+    SampleMatrix L_debug = _covdecomp.matrixL();
+    std::cout << "_covdecomp.matrixL at chi2 / residuals step: " << std::endl << L_debug << std::endl;
+
+    _normResVec = _covdecomp.matrixL().solve(model - _sampvec);
+    _absResVec = model - _sampvec;
+    std::cout << "_normResVec: " << _normResVec << std::endl;
+    std::cout << "_absResVec: " << _absResVec << std::endl;
+    return _normResVec.squaredNorm();
 }
 
 double PulseChiSqSNNLS::ComputeApproxUncertainty(unsigned int ipulse) {

@@ -360,22 +360,10 @@ int main(int argc, char** argv) {
     
     treeOut->Fill();
   }
-  
+
   treeOut->Write();
   fileOut->Close();
   file->Close();
-  
+
   std::cout << " output file = " << filenameOutput.Data() << std::endl;
 }
-
-
-
-
-
-
-
-
-
-
-
-

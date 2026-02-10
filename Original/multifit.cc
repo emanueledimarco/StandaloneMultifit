@@ -42,6 +42,8 @@ void init()
   pSh.SetFNAMECOV("data/PulseCovarianceTestBeamPhase2.root");
   pSh.Init();
 
+  pSh.SetNoiseCorrelationZero();
+
   // intime sample is [3] // edm
   for(int i=0; i<nTemplateBins; i++){
     
@@ -73,7 +75,7 @@ void init()
     }
   }
 
-  //  std::cout << " initialized fullpulsecov = " << std::endl << fullpulsecov << std::endl;
+  std::cout << " initialized fullpulsecov = " << std::endl << fullpulsecov << std::endl;
 
   for (int i=0; i<NSAMPLES; ++i) {
     for (int j=0; j<NSAMPLES; ++j) {
@@ -82,7 +84,7 @@ void init()
     }
   }
 
-  // std::cout << " initialized noisecor = " << std::endl << noisecor << std::endl;
+  std::cout << " initialized noisecor = " << std::endl << noisecor << std::endl;
 
   activeBX.resize(activeBXs.size());
   for (unsigned int ibx=0; ibx<activeBX.size(); ++ibx) {
@@ -117,14 +119,16 @@ void run(std::string inputFile, std::string outFile,
   
   float chisq;
   std::vector <double> samplesReco, timeReco;
-  std::vector <double> pedestalsReco;
-  
+  std::vector <double> pedestalsReco, normResVector, absResVector;
+
   int ipulseintime = 0;
   int nBins = nTemplateBins;
   newtree->Branch("chi2",   &chisq, "chi2/F");
   newtree->Branch("samplesReco",   &samplesReco);
   newtree->Branch("timeReco",   &timeReco);
   newtree->Branch("pedestalsReco",   &pedestalsReco);
+  newtree->Branch("absResVector",   &absResVector);
+  newtree->Branch("normResVector",   &normResVector);
   newtree->Branch("ipulseintime",  &ipulseintime,  "ipulseintime/I");
   newtree->Branch("activeBXs",     &activeBXs);
   newtree->Branch("nTemplateBins",   &nBins, "nTemplateBins/I");
@@ -136,6 +140,12 @@ void run(std::string inputFile, std::string outFile,
     samplesReco.push_back(0.);
     timeReco.push_back(0.);
   }
+
+  for(int i=0; i<NSAMPLES; i++){
+     absResVector.push_back(0.);
+     normResVector.push_back(0.);
+  }
+
 
   double pedval = 0.;
   double pedrms = sigmaNoiseScale*0.044;
@@ -172,7 +182,15 @@ void run(std::string inputFile, std::string outFile,
 
     bool status = pulsefunc.DoFit(amplitudes,noisecor,pedrms,activeBX,fullpulse,fullpulse_deriv,fullpulsecov,gains);
     chisq = pulsefunc.ChiSq();
-    
+
+    SampleVector normResVec = pulsefunc.NormRes();
+    SampleVector absResVec = pulsefunc.AbsRes();
+
+    for(int i=0; i<NSAMPLES; i++){
+      normResVector[i] = normResVec(i, 0);
+      absResVector[i] = absResVec(i, 0);
+   }
+
     for (unsigned int ipulse=0; ipulse<pulsefunc.BXs().rows(); ++ipulse) {
       if (pulsefunc.BXs().coeff(ipulse)==0) {
         ipulseintime = ipulse;
