@@ -42,6 +42,7 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
  std::vector<double>* samples     = new std::vector<double>;
  std::vector<double>* samples_noise = new std::vector<double>;
  std::vector<double>* samplesReco = new std::vector<double>;
+ std::vector<double>* pedestalsReco = new std::vector<double>;
  std::vector<int>*    activeBXs   = new std::vector<int>;
  float pulseShapeTemplate[9];
  
@@ -57,20 +58,20 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
  tree->SetBranchAddress("activeBXs", &activeBXs);
  tree->SetBranchAddress("nTemplateBins", &nTemplateBins);
  tree->SetBranchAddress("pulseShapeTemplate",   pulseShapeTemplate);
- 
+ tree->SetBranchAddress("pedestalsReco", &pedestalsReco);
+
  tree->GetEntry(nEvent);
 
  std::cout << "Got event " << nEvent << std::endl;
- 
- 
+
  TCanvas* ccPulse = new TCanvas ("ccPulse","",800,600);
  ccPulse->SetGrid();
- 
+
  TGraph *grPulse_signal = new TGraph();
  for(int i=0; i<nWF/2; i++){
    grPulse_signal->SetPoint(i, i/4., pulse_signal->at(nWF/2+i));
  }
- 
+
  grPulse_signal->SetMarkerSize(0.4);
  grPulse_signal->SetMarkerStyle(kFullCircle);
  grPulse_signal->SetMarkerColor(kRed);
@@ -81,7 +82,7 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
  for(int i=0; i<nWF/2; i++){
    grPulse_pileup->SetPoint(i, i/4., pileup_signal->at(nWF/2+i));
  }
- 
+
  grPulse_pileup->SetMarkerSize(0.4);
  grPulse_pileup->SetMarkerStyle(kFullDiamond);
  grPulse_pileup->SetMarkerColor(kOrange+4);
@@ -90,8 +91,9 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
 
  TGraph *grPulse_noise = new TGraph();
  for(int i=0; i<(int)samples->size(); i++){
-   grPulse_noise->SetPoint(i, i * NFREQ, samples_noise->at(i));
+   grPulse_noise->SetPoint(i, i * NFREQ, samples_noise->at(i) + pedestalsReco[0].at(0));
  }
+
  grPulse_noise->SetMarkerSize(1);
  grPulse_noise->SetMarkerStyle(kFullCircle);
  grPulse_noise->SetMarkerColor(kGray);
@@ -103,12 +105,26 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
  for(int i=0; i<(int)samples->size(); i++){
    grPulse->SetPoint(i, i * NFREQ, samples->at(i));
  }
+
  grPulse->SetMarkerSize(1);
  grPulse->SetMarkerStyle(kFullCircle);
  grPulse->SetMarkerColor(kBlack);
  grPulse->SetLineStyle(3);
  grPulse->SetLineColor(kBlack);
  grPulse->SetLineWidth(2);
+
+ TGraph *grPulse_sum = new TGraph();
+ for(int i=0; i<(int)samples->size(); i++){
+   grPulse_sum->SetPoint(i, i * NFREQ, grPulse_pileup->Eval(grPulse_noise->GetX()[i])+grPulse_signal->Eval(grPulse_noise->GetX()[i]) );
+ }
+
+ grPulse_sum->SetMarkerSize(1);
+ grPulse_sum->SetMarkerStyle(kFullSquare);
+ grPulse_sum->SetMarkerColor(kViolet);
+ grPulse_sum->SetLineStyle(3);
+ grPulse_sum->SetLineColor(kViolet);
+ grPulse_sum->SetLineWidth(2);
+
 
  grPulse_signal->GetXaxis()->SetTitle("time [ns]");
  grPulse_signal->GetYaxis()->SetTitle("amplitude [GeV]");
@@ -118,8 +134,8 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
  grPulse_pileup->Draw("PL");
  grPulse_noise->Draw("PL");
  grPulse->Draw("LP");
- 
- 
+ grPulse_sum->Draw("LP");
+
  TLegend* leg = new TLegend(0.91,0.10,0.99,0.90);
 
  leg->AddEntry(grPulse_signal,"signal","p");

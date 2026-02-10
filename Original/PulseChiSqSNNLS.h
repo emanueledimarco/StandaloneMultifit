@@ -19,17 +19,21 @@ public:
 	     double pederr,
 	     const BXVector &bxs,
 	     const FullSampleVector &fullpulse,
+       const FullSampleVector &fullpulse_deriv,
 	     const FullSampleMatrix &fullpulsecov,
 	     const SampleGainVector &gains = -1 * SampleGainVector::Ones(),
 	     const SampleGainVector &badSamples = SampleGainVector::Zero());
-  
+
   const SamplePulseMatrix &pulsemat() const { return _pulsemat; }
   const SampleMatrix &invcov() const { return _invcov; }
-  
+  const SampleVector &NormRes() const {return _normResVec; }
+  const SampleVector &AbsRes() const {return _absResVec; }
   const PulseVector &X() const { return _ampvecmin; }
   const PulseVector &Errors() const { return _errvec; }
   const BXVector &BXs() const { return _bxsmin; }
-  
+
+  const PulseVector &T() const { return _time; }
+
   double ChiSq() const { return _chisq; }
   void disableErrorCalculation() { _computeErrors = false; }
   void setNPresamples(int samples) { _npresamples = samples; }
@@ -46,11 +50,13 @@ protected:
   bool updateCov(const SampleMatrix &samplecor, double pederr, const FullSampleMatrix &fullpulsecov);
   double ComputeChiSq();
   double ComputeApproxUncertainty(unsigned int ipulse);
+
+  void TimingSignalRefit();
   
-  
-  SampleVector _sampvec;
+  SampleVector _sampvec, _normResVec, _absResVec;
   SampleMatrix _invcov;
   SamplePulseMatrix _pulsemat;
+  SamplePulseMatrix _pulsemat_t;
   PulseVector _ampvec;
   PulseVector _errvec;
   PulseVector _ampvecmin;
@@ -68,7 +74,12 @@ protected:
   PulseVector updatework;
 
   PulseVector ampvecpermtest;
-  
+
+  // timing
+  PulseVector _time;        // Δt parameters (size = nPulses)
+  PulseVector _timeErr;
+  Eigen::VectorXi _timeActive;  // 1 = free, 0 = fixed (pileup)
+
   double _chisq;
   double _deltachisq;
   bool _computeErrors;

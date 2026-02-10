@@ -204,9 +204,10 @@ double Pulse::fShape(double x) {
 }
 
 float Pulse::fCov(int i, int j) {
-  if ( i == j ) return 0.;
-  if ( i>=0 && i<_hCov->GetNbinsX()) return _hCov->GetBinContent(i+1,j+1);
-  return 0.;
+  return _hCov->GetBinContent(i+1,j+1);
+  //if ( i == j ) return 0.;
+  //if ( i>=0 && i<_hCov->GetNbinsX()) return _hCov->GetBinContent(i+1,j+1);
+  //return 0.;
 }
 
 void Pulse::SetNoiseCorrelationZero() {

@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
   float nPU = 0;
 
   // signal amplitude in GeV
-  float signalAmplitude = 10.0;
+  float signalAmplitude = 200.0;
 
   // Noise level (GeV)
   float sigmaNoise = 0.044;
@@ -70,7 +70,8 @@ int main(int argc, char** argv) {
   
   
   char * wf_name;
-  
+  int nJob=-1;
+
   // Changing variables if passed in on the command line
   if (argc>=2) pulse_shift = atof(argv[1]);
   if (argc>=3) nEventsTotal = atoi(argv[2]);
@@ -118,7 +119,11 @@ int main(int argc, char** argv) {
   // randomize energy (from 0 to signalAmplitude)
   int randomEnergy = 0;
   if (argc>=15) randomEnergy = atoi(argv[14]);
-  
+  if (argc>=16){
+    nJob = atoi(argv[15]);
+    rnd.SetSeed(nJob);
+  }
+
   std::cout << " NSAMPLES = " << NSAMPLES << std::endl;
   std::cout << " NPRESAMPLES = " << NPRESAMPLES << std::endl;
   std::cout << " NFREQ = " << NFREQ << std::endl;
@@ -182,7 +187,11 @@ int main(int argc, char** argv) {
   if (randomEnergy) {
     filenameOutput.ReplaceAll(".root","_FlatEnergy.root");
   }
-  
+
+  if (nJob != -1) {
+    filenameOutput.ReplaceAll(".root", Form("_job%i.root", nJob));
+  }
+
   TFile *fileOut = new TFile(filenameOutput.Data(),"recreate");
   
   
@@ -351,22 +360,10 @@ int main(int argc, char** argv) {
     
     treeOut->Fill();
   }
-  
+
   treeOut->Write();
   fileOut->Close();
   file->Close();
-  
+
   std::cout << " output file = " << filenameOutput.Data() << std::endl;
 }
-
-
-
-
-
-
-
-
-
-
-
-
