@@ -48,7 +48,7 @@ void init()
   for(int i=0; i<nTemplateBins; i++){
     
     //     double x = double( IDSTART + NFREQ * (i + 3) - WFLENGTH / 2);
-    double x = double( NFREQ * i );
+    double x = double( NFREQ * i - PULSESHAPE_SHIFT );
     pulseShapeTemplate[i] = pSh.fShape(x);
     
   }
@@ -60,8 +60,8 @@ void init()
 
   for (int i = 0; i < nTemplateBins; ++i) {
     double x  = NFREQ * i;
-    double dp = pSh.fShape(x + 0.5);
-    double dm = pSh.fShape(x - 0.5);
+    double dp = pSh.fShape(x + 0.5 - PULSESHAPE_SHIFT );
+    double dm = pSh.fShape(x - 0.5 - PULSESHAPE_SHIFT );
     fullpulse_deriv(i + 14) = (dp - dm);
   }
 
@@ -177,7 +177,7 @@ void run(std::string inputFile, std::string outFile,
     if (maxEvents>0 && ievt>=maxEvents) break;
     tree->GetEntry(ievt);
     for(int i=0; i<NSAMPLES; i++){
-      amplitudes[i] = samples->at(i);
+      amplitudes[i] = samples->at(i) + (fitPedestal ? FIXED_PEDESTAL : 0);
     }
 
     bool status = pulsefunc.DoFit(amplitudes,noisecor,pedrms,activeBX,fullpulse,fullpulse_deriv,fullpulsecov,gains);
@@ -218,8 +218,8 @@ void run(std::string inputFile, std::string outFile,
           samplesReco[iReco - minBX] = pulsefunc.X()[ ipulse ];
           timeReco[iReco - minBX] = pulsefunc.T()[ ipulse ];
         } else if (iReco>=100) {
+          pedestalsReco[iReco-100] = pulsefunc.X()[ ipulse ] - FIXED_PEDESTAL;
           std::cout << "pedestal[" << iReco-100 << "] = " << pulsefunc.X()[ ipulse ] << std::endl;
-          pedestalsReco[iReco-100] = pulsefunc.X()[ ipulse ];
         } else {
           std::cout << " idx < 0 is for bad sample (e.g. slew rate). This should not happen, not turned on yet" << std::endl;
         }

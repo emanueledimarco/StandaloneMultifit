@@ -9,8 +9,7 @@
 
 // #include "PulseParameters.h"
 
-const double PULSESHAPE_SHIFT = 4;
-const double TIME_SMEAR=0.5;
+const double PULSESHAPE_SHIFT = %PARAM;
 
 // total number of bunches in "LHC" bunch train
 const int NBXTOTAL = 2800;

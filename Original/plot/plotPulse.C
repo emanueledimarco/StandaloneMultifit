@@ -113,9 +113,11 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
  grPulse->SetLineColor(kBlack);
  grPulse->SetLineWidth(2);
 
+ TGraph* pedestalGraph = new TGraph();
  TGraph *grPulse_sum = new TGraph();
  for(int i=0; i<(int)samples->size(); i++){
-   grPulse_sum->SetPoint(i, i * NFREQ, grPulse_pileup->Eval(grPulse_noise->GetX()[i])+grPulse_signal->Eval(grPulse_noise->GetX()[i]) );
+   grPulse_sum->SetPoint(i, i * NFREQ, grPulse_pileup->Eval(grPulse_noise->GetX()[i])+grPulse_signal->Eval(grPulse_noise->GetX()[i]) + pedestalsReco[0].at(0) );
+   pedestalGraph->SetPoint(i, i*NFREQ, pedestalsReco[0].at(0));
  }
 
  grPulse_sum->SetMarkerSize(1);
@@ -135,6 +137,9 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
  grPulse_noise->Draw("PL");
  grPulse->Draw("LP");
  grPulse_sum->Draw("LP");
+ pedestalGraph->Draw("PL");
+ pedestalGraph->SetLineColor(kBlue);
+ pedestalGraph->SetMarkerColor(kBlue);
 
  TLegend* leg = new TLegend(0.91,0.10,0.99,0.90);
 
@@ -187,9 +192,8 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
   leg2->AddEntry(grPulseReco[iBx],nameHistoTitle.Data(),"p");
  }
 
- 
- for(int i=0; i<(int)samples->size(); i++){
-   grPulseRecoAll->SetPoint(i, i*NFREQ, totalRecoSpectrum.at(i));
+  for(int i=0; i<(int)samples->size(); i++){
+   grPulseRecoAll->SetPoint(i, i*NFREQ, totalRecoSpectrum.at(i) + pedestalsReco[0].at(0));
  }
 
  grPulseRecoAll->SetMarkerColor(kBlack);
@@ -212,9 +216,12 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
  grPulse->SetMarkerStyle(kFullTriangleUp);
  grPulse->SetMarkerColor(kRed);
  grPulse->Draw("PL");
-
+ pedestalGraph->Draw("PL");
+ pedestalGraph->SetLineColor(kBlue);
+ pedestalGraph->SetMarkerColor(kBlue);
  leg2->AddEntry(grPulse,"Data","p");
  leg2->AddEntry(grPulse_noise,"Noise","p");
+ leg2->AddEntry(pedestalGraph,"Reco pedestal","l");
  
  leg2->Draw();
 

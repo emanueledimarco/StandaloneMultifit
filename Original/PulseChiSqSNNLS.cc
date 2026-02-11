@@ -432,7 +432,7 @@ bool PulseChiSqSNNLS::updateCov(const SampleMatrix &samplecor, double pederr, co
 
   _invcov.triangularView<Eigen::Lower>() = (pederr*pederr)*samplecor;
 
-  std::cout << " invcov (only noise) = " << std::endl << _invcov << std::endl;
+  //std::cout << " invcov (only noise) = " << std::endl << _invcov << std::endl;
 
   for (unsigned int ipulse=0; ipulse<npulse; ++ipulse) {
     if (_ampvec.coeff(ipulse)==0.) continue;
@@ -453,19 +453,19 @@ bool PulseChiSqSNNLS::updateCov(const SampleMatrix &samplecor, double pederr, co
     //Eigen::MatrixXd block_sym = block_allocated.template triangularView<Eigen::Lower>();
     //block_sym = block_sym + block_sym.transpose().triangularView<Eigen::StrictlyUpper>();
 
-    std::cout << "block_allocated: " << block_allocated << std::endl;
+    //std::cout << "block_allocated: " << block_allocated << std::endl;
 
     // Try LLT to check PD
-    Eigen::LLT<Eigen::MatrixXd> llt(block_allocated);
-    if (llt.info() == Eigen::NumericalIssue) {
-        std::cout << "WARNING: pulse block not PD" << std::endl;
-    }
+    //Eigen::LLT<Eigen::MatrixXd> llt(block_allocated);
+    //if (llt.info() == Eigen::NumericalIssue) {
+    //    std::cout << "WARNING: pulse block not PD" << std::endl;
+    //}
 
     _invcov.block(firstsamplet,firstsamplet,nsamplepulse,nsamplepulse).triangularView<Eigen::Lower>() += ampsq*block_allocated;
   }
 
   // std::cout << " updateCov " << " here "  << std::endl;
-  std::cout << " invcov after adding pulse covariance= " << std::endl << _invcov << std::endl;
+  //std::cout << " invcov after adding pulse covariance= " << std::endl << _invcov << std::endl;
 
 
   _invcov.triangularView<Eigen::Upper>() =
@@ -498,15 +498,15 @@ double PulseChiSqSNNLS::ComputeChiSq() {
         }
     }
 
-    std::cout << "_invcov at chi2 / residuals step: " << std::endl << _invcov << std::endl;
+    //std::cout << "_invcov at chi2 / residuals step: " << std::endl << _invcov << std::endl;
 
-    SampleMatrix L_debug = _covdecomp.matrixL();
-    std::cout << "_covdecomp.matrixL at chi2 / residuals step: " << std::endl << L_debug << std::endl;
+    //SampleMatrix L_debug = _covdecomp.matrixL();
+    //std::cout << "_covdecomp.matrixL at chi2 / residuals step: " << std::endl << L_debug << std::endl;
 
     _normResVec = _covdecomp.matrixL().solve(model - _sampvec);
     _absResVec = model - _sampvec;
-    std::cout << "_normResVec: " << _normResVec << std::endl;
-    std::cout << "_absResVec: " << _absResVec << std::endl;
+    //std::cout << "_normResVec: " << _normResVec << std::endl;
+    //std::cout << "_absResVec: " << _absResVec << std::endl;
     return _normResVec.squaredNorm();
 }
 
@@ -552,7 +552,7 @@ bool PulseChiSqSNNLS::NNLS() {
 
       //worst case protection
       if (iter >= 500) {
-	std::cout << "PulseChiSqSNNLS::NNLS()" << "\tMax Iterations reached at iter " << iter << std::endl;
+      	std::cout << "PulseChiSqSNNLS::NNLS()" << "\tMax Iterations reached at iter " << iter << std::endl;
         break;
       }
       

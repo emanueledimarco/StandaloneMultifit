@@ -252,6 +252,8 @@ int main(int argc, char** argv) {
   
   
   for (int ievt = 0; ievt < nEventsTotal; ievt++) {
+
+    if (pulse_shift == -100) real_pulse_shift = rnd.Gaus()*TIME_SMEAR;
     if (!(ievt%100)) {
       std::cout << " ievt = " << ievt << " :: " << nEventsTotal << std::endl;
     }
@@ -333,7 +335,7 @@ int main(int argc, char** argv) {
     
     // Add signal and pileup
     for (int i=0; i < NSAMPLES; ++i) {
-      int pulse_index = TMath::Nint(4*(IDSTART + i * NFREQ - pulse_shift));
+      int pulse_index = TMath::Nint(4*(IDSTART + i * NFREQ - real_pulse_shift - PULSESHAPE_SHIFT));
       
       //---- slew rate
       if (distortion_sample_4 != 1) {
