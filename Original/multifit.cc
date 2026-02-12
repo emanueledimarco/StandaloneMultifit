@@ -8,7 +8,6 @@
 #include <iostream>
 #include <TString.h>
 #include "PulseChiSqSNNLS.h"
-#include "Pulse.h"
 
 #include "TTree.h"
 #include "TF1.h"
@@ -20,14 +19,15 @@ using namespace std;
 
 Pulse pSh;
 
-const int nTemplateBins = 9;
+const int nTemplateBins = 10;
 float pulseShapeTemplate[nTemplateBins];
 float templateCovariance[NSAMPLES][NSAMPLES];
 
-std::vector<int> activeBXs = { -3, -2, -1,  0,  1,  2 };
+std::vector<int> activeBXs = { -3, -2, -1,  0,  1, 2};
 
 FullSampleVector fullpulse(FullSampleVector::Zero());
 FullSampleVector fullpulse_deriv(FullSampleVector::Zero());
+FullSampleVector fullpulse_deriv2(FullSampleVector::Zero());
 FullSampleMatrix fullpulsecov(FullSampleMatrix::Zero());
 SampleMatrix noisecor(SampleMatrix::Zero());
 BXVector activeBX;
@@ -60,20 +60,22 @@ void init()
 
   for (int i = 0; i < nTemplateBins; ++i) {
     double x  = NFREQ * i;
-    double dp = pSh.fShape(x + 0.5 - PULSESHAPE_SHIFT );
-    double dm = pSh.fShape(x - 0.5 - PULSESHAPE_SHIFT );
-    fullpulse_deriv(i + 14) = (dp - dm);
+    double dp = pSh.fShape(x + 0.1 - PULSESHAPE_SHIFT );
+    double dm = pSh.fShape(x - 0.1 - PULSESHAPE_SHIFT );
+    fullpulse_deriv(i + 14) = (dp - dm)/0.2;
+    fullpulse_deriv2(i + 14) = (dp + dm - 2*pulseShapeTemplate[i])/0.01;
   }
 
-  //std::cout << " initialized fullpulse = " << std::endl << fullpulse << std::endl;
-  //std::cout << " initialized fullpulse_deriv = " << std::endl << fullpulse_deriv << std::endl;
-  
+  std::cout << " initialized fullpulse = " << std::endl << fullpulse << std::endl;
+  std::cout << " initialized fullpulse_deriv = " << std::endl << fullpulse_deriv << std::endl;
+
   for(int i=0; i<NSAMPLES; i++) {
     for(int j=0; j<NSAMPLES; j++) {
       templateCovariance[i][j] = pSh.fCov(i,j);
       fullpulsecov(i + 14, j + 14) = templateCovariance[i][j];
     }
   }
+
 
   std::cout << " initialized fullpulsecov = " << std::endl << fullpulsecov << std::endl;
 
@@ -180,7 +182,7 @@ void run(std::string inputFile, std::string outFile,
       amplitudes[i] = samples->at(i) + (fitPedestal ? FIXED_PEDESTAL : 0);
     }
 
-    bool status = pulsefunc.DoFit(amplitudes,noisecor,pedrms,activeBX,fullpulse,fullpulse_deriv,fullpulsecov,gains);
+    bool status = pulsefunc.DoFit(amplitudes,noisecor,pedrms,activeBX,fullpulse,fullpulse_deriv,fullpulsecov,pSh,gains);
     chisq = pulsefunc.ChiSq();
 
     SampleVector normResVec = pulsefunc.NormRes();

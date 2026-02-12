@@ -305,7 +305,7 @@ int main(int argc, char** argv) {
 
     for (int iwf = 0; iwf < nWF; iwf++) {
       double t = iwf/4. - (WFLENGTH / 2.)/4. - NPRESAMPLES * NFREQ;
-      pulse_signal.at(iwf) += signalTruth * pSh.fShape(t);
+      pulse_signal.at(iwf) += signalTruth * pSh.fShape(t - real_pulse_shift);
     }
     
     // Construct the digitized points
@@ -335,7 +335,7 @@ int main(int argc, char** argv) {
     
     // Add signal and pileup
     for (int i=0; i < NSAMPLES; ++i) {
-      int pulse_index = TMath::Nint(4*(IDSTART + i * NFREQ - real_pulse_shift - PULSESHAPE_SHIFT));
+      int pulse_index = TMath::Nint(4*(IDSTART + i * NFREQ - PULSESHAPE_SHIFT));
       
       //---- slew rate
       if (distortion_sample_4 != 1) {

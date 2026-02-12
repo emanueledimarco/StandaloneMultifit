@@ -10,6 +10,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include "../Pulse.h"
 
 //---- plot output of multifit
 
@@ -42,6 +43,7 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
  std::vector<double>* samples     = new std::vector<double>;
  std::vector<double>* samples_noise = new std::vector<double>;
  std::vector<double>* samplesReco = new std::vector<double>;
+ std::vector<double>* timeReco = new std::vector<double>;
  std::vector<double>* pedestalsReco = new std::vector<double>;
  std::vector<int>*    activeBXs   = new std::vector<int>;
  float pulseShapeTemplate[9];
@@ -55,6 +57,7 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
  tree->SetBranchAddress("samples_noise",   &samples_noise);
  tree->SetBranchAddress("nFreq",   &NFREQ);
  tree->SetBranchAddress("samplesReco", &samplesReco);
+ tree->SetBranchAddress("timeReco", &timeReco);
  tree->SetBranchAddress("activeBXs", &activeBXs);
  tree->SetBranchAddress("nTemplateBins", &nTemplateBins);
  tree->SetBranchAddress("pulseShapeTemplate",   pulseShapeTemplate);
@@ -69,7 +72,7 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
 
  TGraph *grPulse_signal = new TGraph();
  for(int i=0; i<nWF/2; i++){
-   grPulse_signal->SetPoint(i, i/4., pulse_signal->at(nWF/2+i));
+   grPulse_signal->SetPoint(i, i/4. + PULSESHAPE_SHIFT, pulse_signal->at(nWF/2+i));
  }
 
  grPulse_signal->SetMarkerSize(0.4);
@@ -80,7 +83,7 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
 
  TGraph *grPulse_pileup = new TGraph();
  for(int i=0; i<nWF/2; i++){
-   grPulse_pileup->SetPoint(i, i/4., pileup_signal->at(nWF/2+i));
+   grPulse_pileup->SetPoint(i, i/4. + PULSESHAPE_SHIFT, pileup_signal->at(nWF/2+i));
  }
 
  grPulse_pileup->SetMarkerSize(0.4);
@@ -171,13 +174,30 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
  for(int i=0; i<(int)samples->size(); i++){
    totalRecoSpectrum.push_back(0);
  }
- 
+
+  Pulse pSh;
+
+  pSh.SetFNAMESHAPE("data/EmptyFileTestBeamPhase2.root");
+  pSh.SetFNAMECOV("data/PulseCovarianceTestBeamPhase2.root");
+  pSh.Init();
+
+  std::cout << timeReco->at(3) << std::endl;
+  
+  // intime sample is [3] // edm
+  for(int i=0; i<nTemplateBins; i++){
+    //     double x = double( IDSTART + NFREQ * (i + 3) - WFLENGTH / 2);
+    double x = double( NFREQ * i - PULSESHAPE_SHIFT );
+    pulseShapeTemplate[i] = pSh.fShape(x - timeReco->at(3));
+  }
+
+
  for(int iBx=0; iBx<(int)samplesReco->size(); iBx++){
   std::cout << " iBx = " << iBx << std::endl;
   std::cout << " Energy = " << samplesReco->at(iBx) << std::endl;
   grPulseReco.push_back(new TGraph());
   for(int i=0; i<(int)samples->size(); i++){
-    float templateVal = i < 9 ? pulseShapeTemplate[i] : 0;
+    float templateVal = i < nTemplateBins ? pulseShapeTemplate[i] : 0;
+    std::cout << i << " " << i*NFREQ + activeBXs->at(iBx)*25 + 6*NFREQ << endl;
     grPulseReco[iBx]->SetPoint(i, i*NFREQ + activeBXs->at(iBx)*25 + 6*NFREQ, templateVal * samplesReco->at(iBx));
     int iReco = i + activeBXs->at(iBx) * int(25./NFREQ) + 6;
     if(iReco >= 0 && iReco < (int)samples->size()) {

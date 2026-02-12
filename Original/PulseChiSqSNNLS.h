@@ -4,6 +4,7 @@
 #include "EigenMatrixTypes.h"
 #include <set>
 #include <array>
+#include "Pulse.h"
 
 class PulseChiSqSNNLS {
 public:
@@ -21,8 +22,9 @@ public:
 	     const FullSampleVector &fullpulse,
        const FullSampleVector &fullpulse_deriv,
 	     const FullSampleMatrix &fullpulsecov,
-	     const SampleGainVector &gains = -1 * SampleGainVector::Ones(),
-	     const SampleGainVector &badSamples = SampleGainVector::Zero());
+	     const Pulse &pSh,
+       const SampleGainVector &gains = -1 * SampleGainVector::Ones(),
+ 	     const SampleGainVector &badSamples = SampleGainVector::Zero());
 
   const SamplePulseMatrix &pulsemat() const { return _pulsemat; }
   const SampleMatrix &invcov() const { return _invcov; }
@@ -39,11 +41,12 @@ public:
   void setNPresamples(int samples) { _npresamples = samples; }
   void setMaxShift(int maxshift) { _maxshift = maxshift; }
   void setNFREQ   ( float NFREQ )  { _NFREQ = NFREQ; }
-  
+
 protected:
   
   bool Minimize(const SampleMatrix &samplecor, double pederr, const FullSampleMatrix &fullpulsecov);
   bool NNLS();
+  void AdjustSignalPulseShape();
   void NNLSUnconstrainParameter(Index idxp);
   void NNLSConstrainParameter(Index minratioidx);
   bool OnePulseMinimize();
@@ -80,6 +83,7 @@ protected:
   PulseVector _timeErr;
   Eigen::VectorXi _timeActive;  // 1 = free, 0 = fixed (pileup)
 
+  Pulse _pSh;
   double _chisq;
   double _deltachisq;
   bool _computeErrors;

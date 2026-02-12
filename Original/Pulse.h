@@ -1,3 +1,7 @@
+#ifndef PULSE_H
+#define PULSE_H
+
+
 #include <TMath.h>
 #include <TFile.h>
 #include <TTree.h>
@@ -24,7 +28,7 @@ const int WFLENGTH  = 500*4;
 const int NSAMPLES   = 16;
 
 // number of pre-samples in impulse
-int NPRESAMPLES = 6;
+const int NPRESAMPLES = 6;
 
 // distance between samples in 1ns steps
 const float NFREQ      = 6.25;
@@ -111,7 +115,7 @@ public:
 };
 
 
-Pulse::Pulse()
+inline Pulse::Pulse()
 {
   //---- default
   SetFNAMESHAPE("data/EmptyFileCRRC43.root");
@@ -127,13 +131,13 @@ Pulse::Pulse()
 }
 
 
-Pulse::~Pulse()
+inline Pulse::~Pulse()
 {
 }
 
 
 
-double Pulse::cholesky ( int i, int j ) const {
+inline double Pulse::cholesky ( int i, int j ) const {
   //  std::cout << " i,j = " << i << " , " << j << std::endl;
   //  std::cout << " _mL.size() = " << _mL.size() << std::endl;
   //  std::cout << " _mL.at(i).size() = " << _mL.at(i).size() << std::endl;
@@ -142,40 +146,40 @@ double Pulse::cholesky ( int i, int j ) const {
 }
 
 
-void Pulse::SetIDSTART ( float IDSTART ) {
+inline void Pulse::SetIDSTART ( float IDSTART ) {
   _IDSTART = IDSTART;
 }
 
 
-void Pulse::SetTAU ( float TAU ) {
+inline void Pulse::SetTAU ( float TAU ) {
   _TAU = TAU;
 }
 
 
-void Pulse::SetWFLENGTH ( int WFLENGTH ) {
+inline void Pulse::SetWFLENGTH ( int WFLENGTH ) {
   _WFLENGTH = WFLENGTH;
 }
 
 
-void Pulse::SetNFREQ ( float NFREQ ) {
+inline void Pulse::SetNFREQ ( float NFREQ ) {
   _NFREQ = NFREQ;
 }
 
 
-void Pulse::SetNSAMPLES ( int NSAMPLES ) {
+inline void Pulse::SetNSAMPLES ( int NSAMPLES ) {
   _NSAMPLES = NSAMPLES;
 }
 
-void Pulse::SetFNAMESHAPE ( std::string name ) {
+inline void Pulse::SetFNAMESHAPE ( std::string name ) {
   _FNAMESHAPE = Form ("%s", name.c_str());
 }
 
-void Pulse::SetFNAMECOV ( std::string name ) {
+inline void Pulse::SetFNAMECOV ( std::string name ) {
   _FNAMECOV = Form ("%s", name.c_str());
 }
 
 
-void Pulse::Init() {
+inline void Pulse::Init() {
   
   _filePS = new TFile(_FNAMESHAPE.Data());
   _grPS = (TGraph*) ((TGraph*)_filePS->Get("PulseShape/grPulseShape")) -> Clone();
@@ -194,7 +198,7 @@ void Pulse::Init() {
 
 
 
-double Pulse::fShape(double x) {
+inline double Pulse::fShape(double x) {
   
   if ( _grPS !=0 && x > 0.) {
       return _grPS->Eval(x);
@@ -204,14 +208,14 @@ double Pulse::fShape(double x) {
   }
 }
 
-float Pulse::fCov(int i, int j) {
+inline float Pulse::fCov(int i, int j) {
   return _hCov->GetBinContent(i+1,j+1);
   //if ( i == j ) return 0.;
   //if ( i>=0 && i<_hCov->GetNbinsX()) return _hCov->GetBinContent(i+1,j+1);
   //return 0.;
 }
 
-void Pulse::SetNoiseCorrelationZero() {
+inline void Pulse::SetNoiseCorrelationZero() {
   _mC.clear();
   _mC.push_back(1.0);
   for(int i=1; i<_NSAMPLES; i++){
@@ -232,7 +236,7 @@ void Pulse::SetNoiseCorrelationZero() {
   }
 }
 
-void Pulse::SetNoiseCorrelationMax() {
+inline void Pulse::SetNoiseCorrelationMax() {
   _mC.clear();
   for(int i=0; i<_NSAMPLES; i++){
     _mC.push_back(1.0);
@@ -253,7 +257,7 @@ void Pulse::SetNoiseCorrelationMax() {
 }
 
 
-void Pulse::InitCorr() {
+inline void Pulse::InitCorr() {
   
   //  std::cout << " >> Pulse::NoiseInit " << std::endl;
   _mC.clear();
@@ -268,7 +272,7 @@ void Pulse::InitCorr() {
 }
 
 
-void Pulse::InitCholesky() {
+inline void Pulse::InitCholesky() {
   
   _mL.clear();
   
@@ -309,7 +313,7 @@ void Pulse::InitCholesky() {
 
 
 
-void Pulse::PrintNoise () {
+inline void Pulse::PrintNoise () {
   
   for (int i=0; i < _mL.size(); i++ ) {
     for (int j=0; j < _mL.at(i).size(); j++ ) {
@@ -320,9 +324,10 @@ void Pulse::PrintNoise () {
 }  
 
 
-void Pulse::NoiseInit() {
+inline void Pulse::NoiseInit() {
   InitCorr();
   InitCholesky();
 }
 
 
+#endif
