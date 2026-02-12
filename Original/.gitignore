@@ -4,6 +4,10 @@
 # Compiled object files
 *.x
 
+*.pdf
+*.ps
+*.csv
+
 *.o
 *.obj
 
