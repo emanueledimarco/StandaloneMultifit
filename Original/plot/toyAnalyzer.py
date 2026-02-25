@@ -21,6 +21,103 @@ def makeCut(cuts,verbose=False):
         print("Selection to be applied = ",cut)
     return cut
 
+def gaussFit(h, name, title, xmin=-1, xmax=-1):
+
+    # --- Create RooFit variable ---
+    x = ROOT.RooRealVar("x", "E/E_{True}",
+                        h.GetXaxis().GetXmin(),
+                        h.GetXaxis().GetXmax())
+
+    # --- Define fit subrange (optional) ---
+    useRange = False
+    if xmin >= 0 and xmax >= 0:
+        x.setRange("fitRange", xmin, xmax)
+        useRange = True
+
+    # --- Import histogram ---
+    data = ROOT.RooDataHist("data", "data",
+                            ROOT.RooArgList(x), h)
+
+    # --------------------------------
+    # Gaussian parameters
+    # --------------------------------
+    mean  = ROOT.RooRealVar("mean", "Gaussian mean",
+                            h.GetMean(),
+                            h.GetMean()-1,
+                            h.GetMean()+1)
+
+    sigma = ROOT.RooRealVar("sigma", "Gaussian sigma",
+                            h.GetRMS(),
+                            0.1*h.GetRMS(),
+                            5*h.GetRMS())
+
+    # --------------------------------
+    # Gaussian PDF
+    # --------------------------------
+    gauss = ROOT.RooGaussian("gauss", "Gaussian",
+                             x, mean, sigma)
+
+    # --------------------------------
+    # Extended yield
+    # --------------------------------
+    nsig = ROOT.RooRealVar("nsig", "signal yield",
+                           h.Integral(),
+                           0.0,
+                           10.0*h.Integral())
+
+    model = ROOT.RooAddPdf("model", "extended Gaussian model",
+                           ROOT.RooArgList(gauss),
+                           ROOT.RooArgList(nsig))
+
+    # ---------------------------
+    # Fit
+    # ---------------------------
+    fitArgs = [ROOT.RooFit.Extended(True),
+               ROOT.RooFit.Save(),
+               ROOT.RooFit.PrintLevel(-1)]
+
+    if useRange:
+        fitArgs.insert(0, ROOT.RooFit.Range("fitRange"))
+
+    result = model.fitTo(data, *fitArgs)
+
+    # ---------------------------
+    # Plot
+    # ---------------------------
+    frame = x.frame(ROOT.RooFit.Title(title))
+    data.plotOn(frame)
+    model.plotOn(frame)
+
+    c = ROOT.TCanvas("c", "Gaussian Fit", 800, 600)
+    c.SetLeftMargin(0.15)
+    c.SetBottomMargin(0.15)
+
+    frame.GetYaxis().SetTitleOffset(1.1)
+    frame.GetXaxis().SetTitleOffset(1.1)
+    frame.Draw()
+
+    # Info box
+    pt = ROOT.TPaveText(0.60, 0.70, 0.88, 0.88, "NDC")
+    pt.SetFillColor(0)
+    pt.SetTextFont(42)
+    pt.SetBorderSize(0)
+    pt.SetTextSize(0.05)
+
+    pt.AddText(f"#mu = {mean.getVal():.4f} #pm {mean.getError():.4f}")
+    pt.AddText(f"#sigma = {sigma.getVal():.4f} #pm {sigma.getError():.4f}")
+
+    pt.Draw()
+
+    for ext in ["png", "pdf"]:
+        c.SaveAs(f"{name}.{ext}")
+
+    print("Fit results:")
+    result.Print()
+
+    return {"mean": (mean.getVal(), mean.getError()),
+            "sigma": (sigma.getVal(), sigma.getError())}
+
+
 def cbFit(h,name,title,xmin=-1,xmax=-1):
     # --- Create RooFit variables ---
     x = ROOT.RooRealVar("x", "E/E_{True}", h.GetXaxis().GetXmin(), h.GetXaxis().GetXmax())
@@ -32,41 +129,51 @@ def cbFit(h,name,title,xmin=-1,xmax=-1):
     # --- Import histogram into RooDataHist ---
     data = ROOT.RooDataHist("data", "data", ROOT.RooArgList(x), h)
 
-    # ---------------------------
-    # Crystal Ball parameters
-    # ---------------------------
-    meanCB  = ROOT.RooRealVar("meanCB",  "CB mean",  h.GetMean(), h.GetMean()-1, h.GetMean()+1)
-    sigmaCB = ROOT.RooRealVar("sigmaCB", "CB sigma", h.GetRMS(), 0.1*h.GetRMS(), 5*h.GetRMS())
-    alpha   = ROOT.RooRealVar("alpha",   "alpha",    1.5, 0.1, 5.0)
-    n       = ROOT.RooRealVar("n",       "n",        3.0, 0.5, 20.0)
-    
-    cb = ROOT.RooCBShape("cb", "Crystal Ball", x, meanCB, sigmaCB, alpha, n)
+    # --------------------------------
+    # Double Crystal Ball parameters
+    # --------------------------------
+    mean  = ROOT.RooRealVar("mean",  "DCB mean",
+                            h.GetMean(),
+                            h.GetMean()-1,
+                            h.GetMean()+1)
 
-    # ---------------------------
-    # Gaussian parameters
-    # ---------------------------
-    meanG  = ROOT.RooRealVar("meanG",  "Gauss mean",  h.GetMean(), h.GetMean()-1, h.GetMean()+1)
-    sigmaG = ROOT.RooRealVar("sigmaG", "Gauss sigma", h.GetRMS()/2, 0.1*h.GetRMS(), 5*h.GetRMS())
-    
-    gauss = ROOT.RooGaussian("gauss", "Gaussian", x, meanG, sigmaG)
-    
-    # ---------------------------
-    # Fraction and total yield
-    # ---------------------------
-    fG = ROOT.RooRealVar("fG", "Gaussian fraction", 0.5, 0.0, 1.0)   # fraction for Gaussian
-    Ntot = ROOT.RooRealVar("Ntot", "total yield", h.Integral(), 0, 10*h.Integral())
+    sigma = ROOT.RooRealVar("sigma", "DCB sigma",
+                            h.GetRMS(),
+                            0.1*h.GetRMS(),
+                            5*h.GetRMS())
 
-    # ---------------------------
-    # Combined PDF: fG * Gauss + (1 - fG) * CB
-    # ---------------------------
-    shape = ROOT.RooAddPdf("shape", "Gauss + CB (fractions)",
-                           ROOT.RooArgList(gauss, cb),
-                           ROOT.RooArgList(fG))
-    
-    # Extended model with a single normalization
-    model = ROOT.RooAddPdf("model", "extended model",
-                           ROOT.RooArgList(shape),
-                           ROOT.RooArgList(Ntot))
+    alphaL = ROOT.RooRealVar("alphaL", "alphaL", 1.5, 0.1, 5.0)
+    nL     = ROOT.RooRealVar("nL",     "nL",     3.0, 0.5, 20.0)
+
+    alphaR = ROOT.RooRealVar("alphaR", "alphaR", 1.5, 0.1, 5.0)
+    nR     = ROOT.RooRealVar("nR",     "nR",     3.0, 0.5, 20.0)
+
+    # --------------------------------
+    # Double Crystal Ball PDF
+    # --------------------------------
+    dcb = ROOT.RooCrystalBall(
+        "dcb", "Double Crystal Ball",
+        x,
+        mean,
+        sigma,
+        alphaL, nL,
+        alphaR, nR
+     )
+
+    # --------------------------------
+    # Extended yield
+    # --------------------------------
+    nsig = ROOT.RooRealVar("nsig", "signal yield",
+                           h.Integral(),
+                           0.0,
+                           10.0*h.Integral())
+
+    # --------------------------------
+    # Final model = ONLY DCB
+    # --------------------------------
+    model = ROOT.RooAddPdf("model", "extended DCB model",
+                           ROOT.RooArgList(dcb),
+                           ROOT.RooArgList(nsig))
 
     # ---------------------------
     # Fit (extended likelihood)
@@ -109,8 +216,8 @@ def cbFit(h,name,title,xmin=-1,xmax=-1):
     pt.SetBorderSize(0)
     pt.SetTextSize(0.05)
     
-    pt.AddText(f"m_{{core}} = {meanG.getVal():.3f} #pm {meanG.getError():.3f}")
-    pt.AddText(f"#sigma_{{core}} = {sigmaG.getVal():.3f} #pm {sigmaG.getError():.3f}")
+    pt.AddText(f"m_{{core}} = {mean.getVal():.4f} #pm {mean.getError():.4f}")
+    pt.AddText(f"#sigma_{{core}} = {sigma.getVal():.4f} #pm {sigma.getError():.4f}")
     
     pt.Draw()
     
@@ -119,26 +226,30 @@ def cbFit(h,name,title,xmin=-1,xmax=-1):
 
     print("Fit results:")
     result.Print()
-    return {"mean":(meanG.getVal(),meanG.getError()),
-            "sigma":(sigmaG.getVal(),sigmaG.getError())}
+    print(sigma.getError())
+    return {"mean":(mean.getVal(),mean.getError()),
+            "sigma":(sigma.getVal(),sigma.getError())}
     
-def plotSingleResolution(tree,name,title,selection=[],verbose=False):
+def plotSingleResolution(tree,name,title,selection=[],verbose=False,nbins=200,just_gauss=False,time=False):
     sel=makeCut(selection,verbose)
 
     canvas = ROOT.TCanvas("c1", "resolutions", 800, 600)
 
-    tree.Draw("samplesReco[3]/amplitudeTruth >> resotemp",sel,"goff")
+    if not time: tree.Draw("samplesReco[3]/signalTruth >> resotemp(2000, 0, 2)",sel,"goff")
+    else: tree.Draw("timeReco[3]-pulse_shift >> resotemp(1000, -0.5, 0.5)",sel,"goff")
     resotemp = ROOT.gDirectory.Get("resotemp")
     m = resotemp.GetMean()
     s = resotemp.GetRMS()
 
-    reso = ROOT.TH1F("reso","resolution",60,m-5*s,m+5*s)
-    tree.Draw("samplesReco[3]/amplitudeTruth >> reso",sel)
-    results = cbFit(reso,name,title)
+    reso = ROOT.TH1F("reso","resolution",nbins,m-2*s,m+2*s)
+    if not time: tree.Draw("samplesReco[3]/signalTruth >> reso",sel)
+    else: tree.Draw("timeReco[3]-pulse_shift >> reso",sel,"goff")
+    if not just_gauss: results = cbFit(reso,name,title)
+    else: results = gaussFit(reso,name,title)
     return results
     
-def plotDifferentialResolution(tree,selection=[],verbose=False):
-    Ebins=[1,2,5,10,15,20,25,30,50,70,100]
+def plotDifferentialResolution(tree,selection=[],verbose=False,time=False):
+    Ebins=[0,5,10,20,30,50,70,100,110,130,150,170,180,200]
     x,ex,b,eb,s,es = [],[],[],[],[],[]
     print ("Energy bins to be analysed: ",Ebins)
     for ie in range(len(Ebins)-1):
@@ -149,14 +260,15 @@ def plotDifferentialResolution(tree,selection=[],verbose=False):
 
         name = f"resolution_E{Ebins[ie]}To{Ebins[ie+1]}"
         title = f"{Ebins[ie]} GeV < E < {Ebins[ie+1]} GeV"
-        results = plotSingleResolution(tree,name,title,fullsel)
+        results = plotSingleResolution(tree,name,title,fullsel, nbins=10, just_gauss=True, time=time)
         b.append(results["mean"][0])
         eb.append(results["mean"][1])
         s.append(results["sigma"][0])
         es.append(results["sigma"][1])
         x.append(np.mean([Ebins[ie],Ebins[ie+1]]))
         ex.append(0)
-        
+
+    print(b,eb,s,es,x,ex)
 
     # Convert Python lists to C-style arrays
     x_arr = array.array('d', x)
@@ -165,8 +277,9 @@ def plotDifferentialResolution(tree,selection=[],verbose=False):
     eb_arr = array.array('d', eb)
     s_arr = array.array('d', s)
     es_arr = array.array('d', es)
-    s2_arr = array.array('d', [si/bi for si,bi in zip(s,b)])
-    
+    if not time: s2_arr = array.array('d', [si/bi for si,bi in zip(s,b)])
+    else: s2_arr = array.array('d', s_arr)
+
     gbias = ROOT.TGraphErrors(len(x), x_arr, b_arr, ex_arr, eb_arr)
     gsigma = ROOT.TGraphErrors(len(x), x_arr, s2_arr, ex_arr, es_arr)
 
@@ -241,6 +354,12 @@ def main():
 
     if "differential_resolution" in args.analysis:
         plotDifferentialResolution(tree,args.cut,args.verbose)
+
+    if "single_resolution_time" in args.analysis:
+        plotSingleResolution(tree,"resolution"," AND ".join(args.cut),args.cut,args.verbose,time=True)
+
+    if "differential_resolution_time" in args.analysis:
+        plotDifferentialResolution(tree,args.cut,args.verbose,time=True)
 
 if __name__ == "__main__":
     main()
