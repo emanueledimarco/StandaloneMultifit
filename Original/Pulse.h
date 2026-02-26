@@ -1,7 +1,7 @@
 #ifndef PULSE_H
 #define PULSE_H
 
-
+#include <TSpline.h>
 #include <TMath.h>
 #include <TFile.h>
 #include <TTree.h>
@@ -13,7 +13,8 @@
 
 // #include "PulseParameters.h"
 
-const double PULSESHAPE_SHIFT = 4;
+const double GENERATION_OFFSET = 2;
+const double PULSESHAPE_SHIFT = 2;
 const double TIME_SMEAR=0.5;
 
 // total number of bunches in "LHC" bunch train
@@ -56,6 +57,7 @@ class Pulse{
   //   double mC_[NSAMPLES];
   //   double mL_[NSAMPLES][NSAMPLES];
   TGraph *_grPS;
+  TSpline3 *_splPS;
   TH2F *_hCov;
   float _tMin;
   float _fPar0;
@@ -127,6 +129,7 @@ inline Pulse::Pulse()
   SetWFLENGTH(208);
   
   _grPS = 0x0;
+  _splPS = 0x0;
   _hCov = 0x0;
 }
 
@@ -183,7 +186,7 @@ inline void Pulse::Init() {
   
   _filePS = new TFile(_FNAMESHAPE.Data());
   _grPS = (TGraph*) ((TGraph*)_filePS->Get("PulseShape/grPulseShape")) -> Clone();
-
+  _splPS = new TSpline3("spline3PulseShape", _grPS);
   _fileCov = new TFile(_FNAMECOV.Data());
   _hCov = (TH2F*) ((TH2F*)_fileCov->Get("PulseCovariance")) -> Clone();
   
@@ -199,9 +202,10 @@ inline void Pulse::Init() {
 
 
 inline double Pulse::fShape(double x) {
-  
+
   if ( _grPS !=0 && x > 0.) {
-      return _grPS->Eval(x);
+      return _grPS->Eval(x, _splPS, "S");
+      //return _grPS->Eval(x);
   }
   else {
     return 0.;

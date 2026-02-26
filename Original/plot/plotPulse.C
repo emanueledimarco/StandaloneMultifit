@@ -72,7 +72,7 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
 
  TGraph *grPulse_signal = new TGraph();
  for(int i=0; i<nWF/2; i++){
-   grPulse_signal->SetPoint(i, i/4. + PULSESHAPE_SHIFT, pulse_signal->at(nWF/2+i));
+   grPulse_signal->SetPoint(i, i/4., pulse_signal->at(nWF/2+i));
  }
 
  grPulse_signal->SetMarkerSize(0.4);
@@ -83,7 +83,7 @@ void plotPulse (std::string nameInputFile = "output.root", std::string treeName=
 
  TGraph *grPulse_pileup = new TGraph();
  for(int i=0; i<nWF/2; i++){
-   grPulse_pileup->SetPoint(i, i/4. + PULSESHAPE_SHIFT, pileup_signal->at(nWF/2+i));
+   grPulse_pileup->SetPoint(i, i/4., pileup_signal->at(nWF/2+i));
  }
 
  grPulse_pileup->SetMarkerSize(0.4);

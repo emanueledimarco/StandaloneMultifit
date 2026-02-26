@@ -19,7 +19,7 @@ using namespace std;
 
 Pulse pSh;
 
-const int nTemplateBins = 10;
+const int nTemplateBins = 11;
 float pulseShapeTemplate[nTemplateBins];
 float templateCovariance[NSAMPLES][NSAMPLES];
 

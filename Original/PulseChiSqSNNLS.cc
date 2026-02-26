@@ -168,6 +168,8 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
   //do the actual fit
   bool status = Minimize(samplecor,pederr,fullpulsecov);
 
+  updateCov(samplecor,pederr,fullpulsecov); //removable
+
   TimingSignalRefit();
 
   unsigned int ipulseSignal = 0;
@@ -180,18 +182,24 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
       }
   }
 
+
   float currentTime;
   for (int i=0; i<3; i++){
     currentTime = _time[ipulseSignal];
+    updateCov(samplecor,pederr,fullpulsecov); //removable
     AdjustSignalPulseShape();
     TimingSignalRefit();
     _time[ipulseSignal] += currentTime;
   }
 
+  AdjustSignalPulseShape();
+
+  std::cout << "final... DEBUG - time: " << _time[ipulseSignal] << std::endl;
+
   status &= Minimize(samplecor,pederr,fullpulsecov);
 
   _ampvecmin = _ampvec;
-  
+
   // std::cout << " _sampvec = " << _sampvec << std::endl;
   // std::cout << " bxs = " << bxs << std::endl;
   // std::cout << " fullpulse = " << fullpulse << std::endl;
@@ -295,7 +303,7 @@ void PulseChiSqSNNLS::AdjustSignalPulseShape(){
       }
   }
 
-  const int nTemplateBins = 10;
+  const int nTemplateBins = 11;
   float pulseShapeTemplate[nTemplateBins];
   FullSampleVector fullpulse(FullSampleVector::Zero());
   FullSampleVector fullpulse_deriv(FullSampleVector::Zero());
@@ -312,9 +320,9 @@ void PulseChiSqSNNLS::AdjustSignalPulseShape(){
 
   for (int i = 0; i < nTemplateBins; ++i) {
     double x  = NFREQ * i;
-    double dp = _pSh.fShape(x + 0.1 - PULSESHAPE_SHIFT - _time[ipulseSignal]);
-    double dm = _pSh.fShape(x - 0.1 - PULSESHAPE_SHIFT - _time[ipulseSignal]);
-    fullpulse_deriv(i + 14) = (dp - dm)/0.2;
+    double dp = _pSh.fShape(x + 0.001 - PULSESHAPE_SHIFT - _time[ipulseSignal]);
+    double dm = _pSh.fShape(x - 0.001 - PULSESHAPE_SHIFT - _time[ipulseSignal]);
+    fullpulse_deriv(i + 14) = (dp - dm)/0.002;
   }
 
   //std::cout << "pre: _pulsemat.col(ipulse) " <<_pulsemat.col(ipulseSignal) << std::endl;
@@ -395,7 +403,6 @@ bool PulseChiSqSNNLS::Minimize(const SampleMatrix &samplecor, double pederr, con
 void PulseChiSqSNNLS::TimingSignalRefit() {
 
 
-
     // -------------------------
     // Identify in-time pulse
     // -------------------------
@@ -442,7 +449,6 @@ void PulseChiSqSNNLS::TimingSignalRefit() {
 
         int nFree = 0;
         Eigen::MatrixXd M_sub( SampleVector::RowsAtCompileTime, 0 );
-        Eigen::Vector2d rhs_sub;
         std::vector<int> freeIdx;
 
         if (!activeA) freeIdx.push_back(0);
@@ -454,7 +460,6 @@ void PulseChiSqSNNLS::TimingSignalRefit() {
         M_sub.resize( SampleVector::RowsAtCompileTime, nFree );
         for (int j=0; j<nFree; ++j) M_sub.col(j) = M.col(freeIdx[j]);
 
-        // Solve unconstrained on free subset
         Eigen::VectorXd rhs = _covdecomp.matrixL().solve(res);
         Eigen::VectorXd M_rhs = M_sub.transpose() * rhs;
         Eigen::MatrixXd M_mat = M_sub.transpose() * _covdecomp.matrixL().solve(M_sub);
@@ -474,6 +479,8 @@ void PulseChiSqSNNLS::TimingSignalRefit() {
         double Cmax =  3.0 * x(0);
         if (x(1) < Cmin) { x(1) = Cmin; activeC_lower = true; violated = true; }
         if (x(1) > Cmax) { x(1) = Cmax; activeC_upper = true; violated = true; }
+
+        std::cout << "flags: activeA, activeC_lower, activeC_upper, violated: " << activeA << " " << activeC_lower << " " << activeC_upper << " " << violated << std::endl;
 
         if (!violated) break; // solution feasible
     }
@@ -565,19 +572,18 @@ double PulseChiSqSNNLS::ComputeChiSq() {
 
     //std::cout << "model pre-time: " << model << std::endl;
     // add timing shifts
-    for (unsigned int ipulse=0; ipulse<_bxs.rows(); ++ipulse) {
-        if (_timeActive(ipulse)) {
-            //std::cout << "ipulse (time Active here): " << ipulse << ", _time(ipulse): " << _time(ipulse) << ", _pulsemat_t.col(ipulse): " << _pulsemat_t.col(ipulse) << ", _ampvec(ipulse): " << _ampvec(ipulse) << std::endl;
-            model -= _time(ipulse) * _pulsemat_t.col(ipulse) * _ampvec(ipulse);
-        }
-    }
+    //for (unsigned int ipulse=0; ipulse<_bxs.rows(); ++ipulse) {
+    //    if (_timeActive(ipulse)) {
+    //        //std::cout << "ipulse (time Active here): " << ipulse << ", _time(ipulse): " << _time(ipulse) << ", _pulsemat_t.col(ipulse): " << _pulsemat_t.col(ipulse) << ", _ampvec(ipulse): " << _ampvec(ipulse) << std::endl;
+    //        model -= _time(ipulse) * _pulsemat_t.col(ipulse) * _ampvec(ipulse);
+    //    }
+    //}
     //std::cout << "model post-time: " << model << std::endl;
 
     //std::cout << "_invcov at chi2 / residuals step: " << std::endl << _invcov << std::endl;
 
     //SampleMatrix L_debug = _covdecomp.matrixL();
     //std::cout << "_covdecomp.matrixL at chi2 / residuals step: " << std::endl << L_debug << std::endl;
-
     _normResVec = _covdecomp.matrixL().solve(model - _sampvec);
     _absResVec = model - _sampvec;
     //std::cout << "_normResVec: " << _normResVec << std::endl;
