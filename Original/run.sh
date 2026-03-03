@@ -21,7 +21,7 @@
 #input="inputExternal/mysample_100_0.000_0.000_16_6.25_100.00_200.00_1.000_1.00_TestBeamPhase2_NoiseUncorrelated_cat.root"
 
 input=$1
-./multifit.x $input 1 1
+./multifit.x $input 1 1 $2
 
 #output="output_-_noisescale1.00_fitPed1.root"
 

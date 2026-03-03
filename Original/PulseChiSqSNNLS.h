@@ -33,7 +33,6 @@ public:
   const PulseVector &X() const { return _ampvecmin; }
   const PulseVector &Errors() const { return _errvec; }
   const BXVector &BXs() const { return _bxsmin; }
-
   const PulseVector &T() const { return _time; }
 
   double ChiSq() const { return _chisq; }
@@ -43,7 +42,8 @@ public:
   void setNFREQ   ( float NFREQ )  { _NFREQ = NFREQ; }
 
 protected:
-  
+  int GetSignalPulseIndex();
+  int GetDerivativePulseIndex();
   bool Minimize(const SampleMatrix &samplecor, double pederr, const FullSampleMatrix &fullpulsecov);
   bool NNLS();
   void AdjustSignalPulseShape();
@@ -59,7 +59,6 @@ protected:
   SampleVector _sampvec, _normResVec, _absResVec;
   SampleMatrix _invcov;
   SamplePulseMatrix _pulsemat;
-  SamplePulseMatrix _pulsemat_t;
   PulseVector _ampvec;
   PulseVector _errvec;
   PulseVector _ampvecmin;

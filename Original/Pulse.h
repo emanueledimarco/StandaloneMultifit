@@ -12,6 +12,10 @@
 #include <iomanip>
 
 // #include "PulseParameters.h"
+const int PEDESTAL_BX_OFFSET = 100;
+const int STEP_CORR_BX_OFFSET = -100;
+const int DERIVATIVE_BX_OFFSET = 50;
+
 
 const double GENERATION_OFFSET = 2;
 const double PULSESHAPE_SHIFT = 2;

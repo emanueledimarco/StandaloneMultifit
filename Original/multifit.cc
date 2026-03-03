@@ -211,26 +211,27 @@ void run(std::string inputFile, std::string outFile,
     
     std::cout << " aMax = " << aMax << " amplitudeTruth = " << amplitudeTruth << "  chisq = " << chisq << std::endl;
     // std::cout << " aErr = " << aErr << std::endl;
-    
+    double pedestal_offset = FIXED_PEDESTAL;
     for (unsigned int ipulse=0; ipulse<pulsefunc.BXs().rows(); ++ipulse) {
       int iReco = (int(pulsefunc.BXs().coeff(ipulse)));
       if (status) {
-        if (abs(iReco)<100) { 
+        if (abs(iReco)<PEDESTAL_BX_OFFSET) {
           //          std::cout << "\t ipulse = " << ipulse << " idx = " << iReco << "  ampli = " << pulsefunc.X()[ ipulse ] << std::endl;
           samplesReco[iReco - minBX] = pulsefunc.X()[ ipulse ];
           timeReco[iReco - minBX] = pulsefunc.T()[ ipulse ];
-        } else if (iReco>=100) {
-          pedestalsReco[iReco-100] = pulsefunc.X()[ ipulse ] - FIXED_PEDESTAL;
-          std::cout << "pedestal[" << iReco-100 << "] = " << pulsefunc.X()[ ipulse ] << std::endl;
+        } else if (iReco>=PEDESTAL_BX_OFFSET) {
+          pedestalsReco[iReco-PEDESTAL_BX_OFFSET] = pulsefunc.X()[ ipulse ] - pedestal_offset;
+          pedestal_offset = 0;
+          std::cout << "pedestal[" << iReco-PEDESTAL_BX_OFFSET << "] = " << pulsefunc.X()[ ipulse ] << std::endl;
         } else {
           std::cout << " idx < 0 is for bad sample (e.g. slew rate). This should not happen, not turned on yet" << std::endl;
         }
       } else {
-        if (iReco>=0 && iReco<100) {
+        if (iReco>=0 && iReco<PEDESTAL_BX_OFFSET) {
           samplesReco[iReco - minBX] = -1;
           timeReco[iReco - minBX] = -1;
-        } else if (iReco>=100) {
-          pedestalsReco[iReco-100] = -1;
+        } else if (iReco>=PEDESTAL_BX_OFFSET) {
+          pedestalsReco[iReco-PEDESTAL_BX_OFFSET] = -1;
         } else {
           std::cout << " idx < 0 is for bad sample (e.g. slew rate). This should not happen, not turned on yet" << std::endl;          
         }
