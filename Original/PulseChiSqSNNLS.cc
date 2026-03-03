@@ -168,10 +168,6 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
   //do the actual fit
   bool status = Minimize(samplecor,pederr,fullpulsecov);
 
-  updateCov(samplecor,pederr,fullpulsecov); //removable
-
-  TimingSignalRefit();
-
   unsigned int ipulseSignal = 0;
   bool foundSignal = false;
   for (unsigned int ip = 0; ip < _bxs.rows(); ++ip) {
@@ -186,17 +182,14 @@ bool PulseChiSqSNNLS::DoFit(const SampleVector &samples,
   float currentTime;
   for (int i=0; i<3; i++){
     currentTime = _time[ipulseSignal];
-    updateCov(samplecor,pederr,fullpulsecov); //removable
-    AdjustSignalPulseShape();
     TimingSignalRefit();
+    AdjustSignalPulseShape();
+    status &= Minimize(samplecor,pederr,fullpulsecov);
     _time[ipulseSignal] += currentTime;
   }
 
-  AdjustSignalPulseShape();
-
   std::cout << "final... DEBUG - time: " << _time[ipulseSignal] << std::endl;
 
-  status &= Minimize(samplecor,pederr,fullpulsecov);
 
   _ampvecmin = _ampvec;
 
@@ -421,9 +414,25 @@ void PulseChiSqSNNLS::TimingSignalRefit() {
     // Build residual including all other pulses
     // -------------------------
     SampleVector res = _sampvec;
+
     for (unsigned int ip = 0; ip < _bxs.rows(); ++ip) {
         if (ip != ipulseSignal) res -= _ampvec.coeff(ip) * _pulsemat.col(ip);
     }
+
+    std::cout << std::endl << std::endl << "in timing refit: " << std::endl << "printing data - pileup - pedestal" << std::endl;
+    std::cout << res << std::endl << std::endl;
+
+    std::cout << "printing pulse shape" << std::endl;
+    std::cout << _pulsemat.col(ipulseSignal) << std::endl << std::endl;
+
+    std::cout << "printing pulse shape derivative" << std::endl;
+    std::cout << _pulsemat_t.col(ipulseSignal) << std::endl << std::endl;
+
+    std::cout << "printing decomposed covariance matrix" << std::endl;
+    std::cout << _covdecomp.matrixL().toDenseMatrix() << std::endl << std::endl;
+
+    std::cout << "printing amp vector" << std::endl;
+    std::cout << _ampvec << std::endl << std::endl;
 
     // -------------------------
     // Design matrix for active fit: columns = [P, P']
