@@ -17,8 +17,8 @@ const int STEP_CORR_BX_OFFSET = -100;
 const int DERIVATIVE_BX_OFFSET = 50;
 
 
-const double GENERATION_OFFSET = 2;
-const double PULSESHAPE_SHIFT = 2;
+const double GENERATION_OFFSET = 0;
+const double PULSESHAPE_SHIFT = 4;
 const double TIME_SMEAR=0.5;
 
 // total number of bunches in "LHC" bunch train

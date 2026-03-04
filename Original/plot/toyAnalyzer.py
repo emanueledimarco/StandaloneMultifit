@@ -103,8 +103,8 @@ def gaussFit(h, name, title, xmin=-1, xmax=-1):
     pt.SetBorderSize(0)
     pt.SetTextSize(0.05)
 
-    pt.AddText(f"#mu = {mean.getVal():.4f} #pm {mean.getError():.4f}")
-    pt.AddText(f"#sigma = {sigma.getVal():.4f} #pm {sigma.getError():.4f}")
+    pt.AddText(f"#mu = {mean.getVal():.3g} #pm {mean.getError():.3g}")
+    pt.AddText(f"#sigma = {sigma.getVal():.3g} #pm {sigma.getError():.3g}")
 
     pt.Draw()
 
@@ -215,13 +215,15 @@ def cbFit(h,name,title,xmin=-1,xmax=-1):
     pt.SetTextFont(42)
     pt.SetBorderSize(0)
     pt.SetTextSize(0.05)
+
+    print(mean.getError())
     
-    pt.AddText(f"m_{{core}} = {mean.getVal():.4f} #pm {mean.getError():.4f}")
-    pt.AddText(f"#sigma_{{core}} = {sigma.getVal():.4f} #pm {sigma.getError():.4f}")
+    pt.AddText(f"m_{{core}} = {mean.getVal():.3g} #pm {mean.getError():.3g}")
+    pt.AddText(f"#sigma_{{core}} = {sigma.getVal():.3g} #pm {sigma.getError():.3g}")
     
     pt.Draw()
     
-    for ext in ["png","pdf"]:
+    for ext in ["png","pdf","root"]:
         c.SaveAs(f"{name}.{ext}")
 
     print("Fit results:")
@@ -241,7 +243,7 @@ def plotSingleResolution(tree,name,title,selection=[],verbose=False,nbins=200,ju
     m = resotemp.GetMean()
     s = resotemp.GetRMS()
 
-    reso = ROOT.TH1F("reso","resolution",nbins,m-2*s,m+2*s)
+    reso = ROOT.TH1F("reso","resolution",nbins,m-1*s,m+1*s)
     if not time: tree.Draw("samplesReco[3]/signalTruth >> reso",sel)
     else: tree.Draw("timeReco[3]-pulse_shift >> reso",sel,"goff")
     if not just_gauss: results = cbFit(reso,name,title)
@@ -348,7 +350,7 @@ def main():
     setStyle()
 
     print (" ==== Analyses to be run: ====\n", args.analysis)
-    
+
     if "single_resolution" in args.analysis:
         plotSingleResolution(tree,"resolution"," AND ".join(args.cut),args.cut,args.verbose)
 
