@@ -16,10 +16,11 @@ const int PEDESTAL_BX_OFFSET = 100;
 const int STEP_CORR_BX_OFFSET = -100;
 const int DERIVATIVE_BX_OFFSET = 50;
 
-
 const double GENERATION_OFFSET = 0;
-const double PULSESHAPE_SHIFT = 4;
-const double TIME_SMEAR=0.5;
+const double PULSESHAPE_SHIFT = 0;
+const double TIME_SMEAR=0.3;
+
+const double SIGNAL_TEMPLATE_ERROR_SCALING = 10;
 
 // total number of bunches in "LHC" bunch train
 const int NBXTOTAL = 2800;
@@ -60,8 +61,8 @@ class Pulse{
   //   double weights_[NSAMPLES];
   //   double mC_[NSAMPLES];
   //   double mL_[NSAMPLES][NSAMPLES];
-  TGraph *_grPS;
-  TSpline3 *_splPS;
+  TGraph *_grPS, *_grPSsignalError;
+  TSpline3 *_splPS, *_splPSsignalError;
   TH2F *_hCov;
   float _tMin;
   float _fPar0;
@@ -116,10 +117,21 @@ public:
   void SetNoiseCorrelationZero();
   void SetNoiseCorrelationMax();
   double fShape(double);
+  double fSignalShapeError(double);
   float fCov(int i, int j);
-  
+
+
 };
 
+
+inline double Pulse::fSignalShapeError(double x){
+  if ( _grPSsignalError !=0 && x > 0.) {
+      return _grPSsignalError->Eval(x, _splPSsignalError, "S")*SIGNAL_TEMPLATE_ERROR_SCALING;
+  }
+  else {
+    return 0.;
+  }
+}
 
 inline Pulse::Pulse()
 {
@@ -131,9 +143,10 @@ inline Pulse::Pulse()
   SetIDSTART(104);
   SetTAU(43.0);
   SetWFLENGTH(208);
-  
+
   _grPS = 0x0;
   _splPS = 0x0;
+  _splPSsignalError = 0x0;
   _hCov = 0x0;
 }
 
@@ -191,9 +204,12 @@ inline void Pulse::Init() {
   _filePS = new TFile(_FNAMESHAPE.Data());
   _grPS = (TGraph*) ((TGraph*)_filePS->Get("PulseShape/grPulseShape")) -> Clone();
   _splPS = new TSpline3("spline3PulseShape", _grPS);
+
   _fileCov = new TFile(_FNAMECOV.Data());
   _hCov = (TH2F*) ((TH2F*)_fileCov->Get("PulseCovariance")) -> Clone();
-  
+  _grPSsignalError = (TGraph*) ((TGraph*)_fileCov->Get("grPulseShapeSignalError")) -> Clone();
+  _splPSsignalError = new TSpline3("spline3PulseShapeSignalError", _grPSsignalError);
+
   // In-time sample is i=5
   for(int i=0; i<_NSAMPLES; i++){
     double x = double( _IDSTART + _NFREQ * i - _WFLENGTH / 2);

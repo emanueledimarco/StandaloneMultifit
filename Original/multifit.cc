@@ -17,11 +17,12 @@
 
 using namespace std;
 
-Pulse pSh;
+ Pulse pSh;
 
 const int nTemplateBins = 11;
-float pulseShapeTemplate[nTemplateBins];
 float templateCovariance[NSAMPLES][NSAMPLES];
+float pulseShapeTemplate[nTemplateBins], signalTemplateError[nTemplateBins];
+
 
 std::vector<int> activeBXs = { -3, -2, -1,  0,  1, 2};
 
@@ -34,29 +35,30 @@ BXVector activeBX;
 SampleVector amplitudes(SampleVector::Zero());
 SampleGainVector gains(-1 * SampleGainVector::Ones());
 
+FullSampleVector fullpulse_signal_template_error(FullSampleVector::Zero());
+
 
 void init()
 {
-  
+
   pSh.SetFNAMESHAPE("data/EmptyFileTestBeamPhase2.root");
-  pSh.SetFNAMECOV("data/PulseCovarianceTestBeamPhase2.root");
+  pSh.SetFNAMECOV("data/PulseCovarianceTestBeamPhase_withFlatSignalError.root");
   pSh.Init();
 
   pSh.SetNoiseCorrelationZero();
 
-  // intime sample is [3] // edm
+  //   intime sample is [3] // edm
   for(int i=0; i<nTemplateBins; i++){
-    
     //     double x = double( IDSTART + NFREQ * (i + 3) - WFLENGTH / 2);
     double x = double( NFREQ * i - PULSESHAPE_SHIFT );
     pulseShapeTemplate[i] = pSh.fShape(x);
-    
+    signalTemplateError[i] = pSh.fSignalShapeError(x);
   }
-  //  for(int i=0; i<(NSAMPLES+2); i++) pulseShapeTemplate[i] /= pulseShapeTemplate[2];
-  // 9 is the number of samples sufficient to cover the part non 0 of the pulse template
-  // distance from min early BX (-4) to max late BX (+2) = 4*NFREQ + 16 + 2*NFREQ = 40 (NFREQ=4, fullpulse length) (if min early BX =-3 then 3*4 + 16 + 2*4 = 36)
-  // shift from min early BX (-4) to first pulse sample (5) = 5 + 4 = 0
-  for (int i=0; i<nTemplateBins; ++i) fullpulse(i+14) = pulseShapeTemplate[i];
+
+  for (int i=0; i<nTemplateBins; ++i){
+    fullpulse(i+14) = pulseShapeTemplate[i];
+    fullpulse_signal_template_error(i+14) = signalTemplateError[i];
+  }
 
   for (int i = 0; i < nTemplateBins; ++i) {
     double x  = NFREQ * i;
@@ -83,6 +85,7 @@ void init()
     for (int j=0; j<NSAMPLES; ++j) {
       int vidx = std::abs(j-i);
       noisecor(i,j) = pSh.corr(vidx);
+      //if ( (i == 9) && (j==9) ) noisecor(i,j) = 100000.;
     }
   }
 
@@ -174,7 +177,9 @@ void run(std::string inputFile, std::string outFile,
   pulsefunc.setMaxShift(maxshift);
   pulsefunc.disableErrorCalculation();
 
-  
+  SampleGainVector badsamples = SampleGainVector::Zero();
+  //badsamples[9] = 1;
+
   for(int ievt=0; ievt<nentries; ++ievt){
     if (maxEvents>0 && ievt>=maxEvents) break;
     tree->GetEntry(ievt);
@@ -182,7 +187,7 @@ void run(std::string inputFile, std::string outFile,
       amplitudes[i] = samples->at(i) + (fitPedestal ? FIXED_PEDESTAL : 0);
     }
 
-    bool status = pulsefunc.DoFit(amplitudes,noisecor,pedrms,activeBX,fullpulse,fullpulse_deriv,fullpulsecov,pSh,gains);
+    bool status = pulsefunc.DoFit(amplitudes,noisecor,pedrms,activeBX,fullpulse,fullpulse_deriv,fullpulsecov,fullpulse_signal_template_error,pSh,gains,badsamples);
     chisq = pulsefunc.ChiSq();
 
     SampleVector normResVec = pulsefunc.NormRes();

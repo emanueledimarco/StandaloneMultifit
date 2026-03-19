@@ -288,6 +288,7 @@ int main(int argc, char** argv) {
         //std::cout << std::endl << "bx: " << ibx << std::endl;
         //std::cout << "wf: " << iwf << std::endl;
         double t = (BX0 - ibx) * 25. + iwf/4. - (WFLENGTH / 2.)/4. - NPRESAMPLES * NFREQ - PULSESHAPE_SHIFT;
+
         //std::cout << "BXO, WFLENGTH, NPRESAMPLES, NFREQ, PULSESHAPE_SHIFT: " << BX0 << " " << WFLENGTH << " " << NPRESAMPLES << " " << NFREQ << " " << PULSESHAPE_SHIFT << std::endl;
         double temp = pileup_signal.at(iwf);
         if ((t < 0) || (t > NSAMPLES * NFREQ)) continue;

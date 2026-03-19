@@ -22,6 +22,7 @@ public:
 	     const FullSampleVector &fullpulse,
        const FullSampleVector &fullpulse_deriv,
 	     const FullSampleMatrix &fullpulsecov,
+	     const FullSampleVector &fullpulse_signal_template_error,
 	     const Pulse &pSh,
        const SampleGainVector &gains = -1 * SampleGainVector::Ones(),
  	     const SampleGainVector &badSamples = SampleGainVector::Zero());
@@ -55,16 +56,17 @@ protected:
   double ComputeApproxUncertainty(unsigned int ipulse);
 
   void TimingSignalRefit();
-  
+
   SampleVector _sampvec, _normResVec, _absResVec;
+  SampleVector _signalTemplateError;
   SampleMatrix _invcov;
   SamplePulseMatrix _pulsemat;
   PulseVector _ampvec;
   PulseVector _errvec;
   PulseVector _ampvecmin;
-  
+
   SampleDecompLLT _covdecomp;
-  
+
   BXVector _bxs;
   BXVector _bxsmin;
   unsigned int _npulsetot;

@@ -1,7 +1,7 @@
 # Makefile using config.mk
 include config.mk
 
-CXX = g++ -g -O0
+CXX = ccache g++ -g -O0
 
 all: CreateData.x multifit.x
 
