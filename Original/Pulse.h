@@ -20,7 +20,7 @@ const double GENERATION_OFFSET = 0;
 const double PULSESHAPE_SHIFT = 0;
 const double TIME_SMEAR=0.3;
 
-const double SIGNAL_TEMPLATE_ERROR_SCALING = 10;
+const double SIGNAL_TEMPLATE_ERROR_SCALING = 1;
 
 // total number of bunches in "LHC" bunch train
 const int NBXTOTAL = 2800;
