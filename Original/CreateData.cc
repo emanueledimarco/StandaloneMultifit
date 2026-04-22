@@ -50,8 +50,8 @@ int main(int argc, char** argv) {
 
   // Noise level (GeV)
   float sigmaNoise = 0.044;
-  float sigmaNoiseScale = 1;
-  
+  float sigmaNoiseScale = 6;
+
   // PU Scale factor
   float puFactor = 1;
 

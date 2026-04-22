@@ -6,19 +6,7 @@
 #include <iostream>
 #include <fstream>
 #include <Eigen/Dense>
-
-struct CubicSegment {
-    double x0; // interval start
-    double x1; // interval end
-    double a, b, c, d; // coefficients: S(x) = a + b*(x-xc) + c*(x-xc)^2 + d*(x-xc)^3
-    double xc; // center of interval
-};
-
-// Evaluate cubic at x
-double EvalCubicSegment(const CubicSegment& seg, double x){
-    double dx = x - seg.xc;
-    return seg.a + seg.b*dx + seg.c*dx*dx + seg.d*dx*dx*dx;
-}
+#include "PieceWiseCubicSpline.h"
 
 // Main function
 void resample(TGraphErrors* gr, double dt=6.5, const char* outFile="coeffs_global.txt"){
@@ -148,6 +136,9 @@ void resample(TGraphErrors* gr, double dt=6.5, const char* outFile="coeffs_globa
         segments[i].d = sol(i*4+3);
     }
 
+    PiecewiseCubicSpline splineObj;
+    splineObj.SetSegments(segments);
+
     // Save coefficients
     std::ofstream out(outFile);
     out << "# xc x0 x1 a b c d\n";
@@ -168,7 +159,7 @@ void resample(TGraphErrors* gr, double dt=6.5, const char* outFile="coeffs_globa
         size_t k=0;
         for(;k<Nint;++k) if(x>=segments[k].x0 && x<=segments[k].x1) break;
         if(k==Nint) k=Nint-1;
-        double y = EvalCubicSegment(segments[k], x);
+        double y = splineObj.Eval(x);
         grRec->SetPoint(i,x,y);
     }
 
@@ -184,7 +175,7 @@ void resample(TGraphErrors* gr, double dt=6.5, const char* outFile="coeffs_globa
 
     TGraph* grSamples = new TGraph(Nint);
     for(size_t i=0;i<Nint;++i){
-        double y = EvalCubicSegment(segments[i], xc[i]);
+        double y = gr->Eval(xc[i]);
         grSamples->SetPoint(i, xc[i], y);
     }
     grSamples->SetMarkerStyle(21);
@@ -193,5 +184,6 @@ void resample(TGraphErrors* gr, double dt=6.5, const char* outFile="coeffs_globa
     grSamples->Draw("P SAME");
 
     c->BuildLegend();
+    c->SaveAs("canvas.root");
     std::cout<<"Black=measured, Blue=reconstructed, Magenta=sample points\n";
 }

@@ -29,8 +29,9 @@ root -l -b  shift_scans/output_-_noisescale1.00_fitPed1_globalshift_${i}.root <<
           logn = norm * Aterm * exp(expterm);
           return logn;
   }
-  TF1 *logn = new TF1("logn", f_logn, 0.99, 1.01, 4);
-  logn->SetParameters(-0.3, 0.001, 1, 0.1);
+
+  TF1 *logn = new TF1("logn", f_logn, 0.998, 1.005, 4);
+  logn->SetParameters(-0.3, 0.001, 1.001, 0.1);
   he->Fit(logn);
   TF1 *gaus = new TF1("f_gaus", "gaus", -1, 1);
   ht->Fit(gaus);
@@ -45,7 +46,7 @@ done
 root rootlogon.C << EOF
   new TTree("t", "t");
   t->ReadFile("$1");
-  t->Draw("shift:trms:trmserr", "", "goff");
+  t->Draw("shift:trms*1000:trmserr*1000", "", "goff");
   TGraphErrors *gt = new TGraphErrors(t->GetSelectedRows(), t->GetV1(), t->GetV2(), t->GetV3(), t->GetV3());
   t->Draw("shift:erms*1e2:ermserr*1e2", "", "goff");
   TGraphErrors *ge = new TGraphErrors(t->GetSelectedRows(), t->GetV1(), t->GetV2(), t->GetV3(), t->GetV3());
@@ -54,6 +55,7 @@ root rootlogon.C << EOF
   gt->Draw();
   gt->GetYaxis()->SetTitle("#sigma_{t} [ps]");
   gt->GetXaxis()->SetTitle("Pulse shape shift [ns]");
+  gt->GetYaxis()->SetTitleOffset(1.5);
   gt->SetTitle("Time resolution");
   ct->BuildLegend(0.6, 0.70, 0.8, 0.88);
   //ct->SetLogy();

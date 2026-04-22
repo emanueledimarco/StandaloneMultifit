@@ -1,6 +1,7 @@
 #ifndef PULSE_H
 #define PULSE_H
 
+#include <fstream>
 #include <TSpline.h>
 #include <TMath.h>
 #include <TFile.h>
@@ -10,6 +11,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include "PieceWiseCubicSpline.h"
 
 // #include "PulseParameters.h"
 const int PEDESTAL_BX_OFFSET = 100;
@@ -61,8 +63,9 @@ class Pulse{
   //   double weights_[NSAMPLES];
   //   double mC_[NSAMPLES];
   //   double mL_[NSAMPLES][NSAMPLES];
-  TGraph *_grPS, *_grPSsignalError;
-  TSpline3 *_splPS, *_splPSsignalError;
+  TGraph *_grPSsignalError;
+  TSpline3 *_splPSsignalError;
+  PiecewiseCubicSpline* _splPS;
   TH2F *_hCov;
   float _tMin;
   float _fPar0;
@@ -91,7 +94,7 @@ public:
   
   Pulse();
   ~Pulse();
-  
+
   void SetFNAMESHAPE ( std::string name );
   void SetFNAMECOV ( std::string name );
   void SetNSAMPLES ( int NSAMPLES );
@@ -99,8 +102,7 @@ public:
   void SetTAU ( float TAU );
   void SetWFLENGTH ( int WFLENGTH );
   void SetIDSTART ( float IDSTART );
-  
-  TGraph* grPS() {return _grPS; };
+
   float tMin() const { return _tMin; };
   float fPar0() const { return _fPar0; };
   float fPar1() const { return _fPar1; };
@@ -136,15 +138,14 @@ inline double Pulse::fSignalShapeError(double x){
 inline Pulse::Pulse()
 {
   //---- default
-  SetFNAMESHAPE("data/EmptyFileCRRC43.root");
-  SetFNAMECOV("data/PulseCovarianceTestBeamPhase2.root");
+  SetFNAMESHAPE("data/TestBeamPhase2_PS_coeffs.txt");
+  SetFNAMECOV("data/PulseCovarianceTestBeamPhase_withFlatSignalError.root");
   SetNSAMPLES(16);
   SetNFREQ(6.25);
   SetIDSTART(104);
   SetTAU(43.0);
   SetWFLENGTH(208);
 
-  _grPS = 0x0;
   _splPS = 0x0;
   _splPSsignalError = 0x0;
   _hCov = 0x0;
@@ -200,10 +201,9 @@ inline void Pulse::SetFNAMECOV ( std::string name ) {
 
 
 inline void Pulse::Init() {
-  
-  _filePS = new TFile(_FNAMESHAPE.Data());
-  _grPS = (TGraph*) ((TGraph*)_filePS->Get("PulseShape/grPulseShape")) -> Clone();
-  _splPS = new TSpline3("spline3PulseShape", _grPS);
+
+   std::cout << "reading from: " << _FNAMESHAPE.Data() << std::endl;
+  _splPS = new PiecewiseCubicSpline(_FNAMESHAPE.Data());
 
   _fileCov = new TFile(_FNAMECOV.Data());
   _hCov = (TH2F*) ((TH2F*)_fileCov->Get("PulseCovariance")) -> Clone();
@@ -215,17 +215,16 @@ inline void Pulse::Init() {
     double x = double( _IDSTART + _NFREQ * i - _WFLENGTH / 2);
     _weights.push_back( fShape(x) );
   }
-  
-  NoiseInit(); 
+
+  NoiseInit();
 }
 
 
 
 inline double Pulse::fShape(double x) {
 
-  if ( _grPS !=0 && x > 0.) {
-      return _grPS->Eval(x, _splPS, "S");
-      //return _grPS->Eval(x);
+  if ( x > 0.) {
+      return _splPS->Eval(x);
   }
   else {
     return 0.;

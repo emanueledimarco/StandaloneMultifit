@@ -243,7 +243,7 @@ def plotSingleResolution(tree,name,title,selection=[],verbose=False,nbins=200,ju
     m = resotemp.GetMean()
     s = resotemp.GetRMS()
 
-    reso = ROOT.TH1F("reso","resolution",nbins,m-1*s,m+1*s)
+    reso = ROOT.TH1F("reso","resolution",nbins,m-2.5*s,m+2.5*s)
     if not time: tree.Draw("samplesReco[3]/signalTruth >> reso",sel)
     else: tree.Draw("timeReco[3]-pulse_shift >> reso",sel,"goff")
     if not just_gauss: results = cbFit(reso,name,title)
@@ -262,7 +262,7 @@ def plotDifferentialResolution(tree,selection=[],verbose=False,time=False):
 
         name = f"resolution_E{Ebins[ie]}To{Ebins[ie+1]}"
         title = f"{Ebins[ie]} GeV < E < {Ebins[ie+1]} GeV"
-        results = plotSingleResolution(tree,name,title,fullsel, nbins=10, just_gauss=True, time=time)
+        results = plotSingleResolution(tree,name,title,fullsel, nbins=10, just_gauss=False, time=time)
         b.append(results["mean"][0])
         eb.append(results["mean"][1])
         s.append(results["sigma"][0])

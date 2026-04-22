@@ -41,17 +41,19 @@ FullSampleVector fullpulse_signal_template_error(FullSampleVector::Zero());
 void init()
 {
 
-  pSh.SetFNAMESHAPE("data/EmptyFileTestBeamPhase2.root");
+  pSh.SetFNAMESHAPE("data/TestBeamPhase2_PS_coeffs.txt");
   pSh.SetFNAMECOV("data/PulseCovarianceTestBeamPhase_withFlatSignalError.root");
   pSh.Init();
 
   pSh.SetNoiseCorrelationZero();
 
+  std::cout << std::endl << std::endl << "printing read PS" << std::endl;
   //   intime sample is [3] // edm
   for(int i=0; i<nTemplateBins; i++){
     //     double x = double( IDSTART + NFREQ * (i + 3) - WFLENGTH / 2);
     double x = double( NFREQ * i - PULSESHAPE_SHIFT );
     pulseShapeTemplate[i] = pSh.fShape(x);
+    std::cout << pulseShapeTemplate[i] << std::endl;
     signalTemplateError[i] = pSh.fSignalShapeError(x);
   }
 
@@ -214,7 +216,7 @@ void run(std::string inputFile, std::string outFile,
     double aErr = status ? pulsefunc.Errors()[ipulseintime] : 0.;
     double time = status ? pulsefunc.T()[ipulseintime] : 0.;
     
-    std::cout << " aMax = " << aMax << " amplitudeTruth = " << amplitudeTruth << "  chisq = " << chisq << std::endl;
+    //std::cout << " aMax = " << aMax << " amplitudeTruth = " << amplitudeTruth << "  chisq = " << chisq << std::endl;
     // std::cout << " aErr = " << aErr << std::endl;
     double pedestal_offset = FIXED_PEDESTAL;
     for (unsigned int ipulse=0; ipulse<pulsefunc.BXs().rows(); ++ipulse) {
