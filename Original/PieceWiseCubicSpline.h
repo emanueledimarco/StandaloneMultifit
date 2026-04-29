@@ -7,14 +7,14 @@
 struct CubicSegment {
     double x0; // interval start
     double x1; // interval end
-    double a, b, c, d; // coefficients: S(x) = a + b*(x-xc) + c*(x-xc)^2 + d*(x-xc)^3
+    std::vector<double> values;
     double xc; // center of interval
 };
 
 // Evaluate cubic at x
 inline double EvalCubicSegment(const CubicSegment& seg, double x){
     double dx = x - seg.xc;
-    return seg.a + seg.b*dx + seg.c*dx*dx + seg.d*dx*dx*dx;
+    return seg.values[0] + seg.values[1]*dx + seg.values[2]*dx*dx + seg.values[3]*dx*dx*dx;
 }
 
 class PiecewiseCubicSpline {
@@ -30,6 +30,9 @@ public:
         _segs = s;
     }
 
+    void SetParameter(const int n_segment, const int n_parameter, const double value){
+         _segs[n_segment].values[n_parameter] = value;
+    }
 
     // default constructor
     PiecewiseCubicSpline() = default;
@@ -58,7 +61,7 @@ public:
 
             CubicSegment s;
             ss >> s.xc >> s.x0 >> s.x1
-               >> s.a >> s.b >> s.c >> s.d;
+               >> s.values[0] >> s.values[1] >> s.values[2] >> s.values[3];
 
             if(ss.fail()) continue;
 
@@ -83,13 +86,6 @@ public:
 
         if(k == _segs.size()) k = _segs.size() - 1;
         return EvalCubicSegment(_segs[k], x);
-    }
-
-    double EvalSafe(double x) const {
-        if(_segs.empty()) return 0.0;
-        if(x <= _segs.front().x0) return EvalCubicSegment(_segs.front(), x);
-        if(x >= _segs.back().x1)  return EvalCubicSegment(_segs.back(), x);
-        return Eval(x);
     }
 
     size_t Size() const { return _segs.size(); }

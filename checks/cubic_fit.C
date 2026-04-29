@@ -9,7 +9,7 @@
 #include "PieceWiseCubicSpline.h"
 
 // Main function
-void resample(TGraphErrors* gr, double dt=6.5, const char* outFile="coeffs_global.txt"){
+void resample(TGraphErrors* gr, double dt=6.25, const char* outFile="coeffs_global.txt"){
     if(!gr) return;
     size_t Npts = gr->GetN();
     std::vector<double> xMeasured(Npts), yMeasured(Npts), yErr(Npts);
@@ -136,8 +136,8 @@ void resample(TGraphErrors* gr, double dt=6.5, const char* outFile="coeffs_globa
         segments[i].d = sol(i*4+3);
     }
 
-    PiecewiseCubicSpline splineObj;
-    splineObj.SetSegments(segments);
+    PiecewiseCubicSpline *splineObj = new PiecewiseCubicSpline("");
+    splineObj->SetSegments(segments);
 
     // Save coefficients
     std::ofstream out(outFile);
@@ -159,7 +159,7 @@ void resample(TGraphErrors* gr, double dt=6.5, const char* outFile="coeffs_globa
         size_t k=0;
         for(;k<Nint;++k) if(x>=segments[k].x0 && x<=segments[k].x1) break;
         if(k==Nint) k=Nint-1;
-        double y = splineObj.Eval(x);
+        double y = splineObj->Eval(x);
         grRec->SetPoint(i,x,y);
     }
 
