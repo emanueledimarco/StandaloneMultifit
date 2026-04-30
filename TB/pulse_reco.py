@@ -81,7 +81,7 @@ def fit_pulse_iterative(waveforms, pulse, t, t_data_peak, t_template_peak, n_ite
     E, C, N = waveforms.shape
 
     # initial alignment from DATA only
-    dt = t_data_peak - t_template_peak   # (E, C)
+    dt = np.full((E, C), t_data_peak - t_template_peak)   # (E, C)
     A  = np.ones((E, C))
 
     #print("t", t, "t_template_peak,", t_template_peak, "t_centered", t_centered)
