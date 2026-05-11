@@ -1,0 +1,134 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{amsmath}
+\title{Multifit-TB}
+\author{Ruben }
+\date{May 2026}
+
+\begin{document}
+
+\maketitle
+
+
+
+The measured discrete waveform $w(t)$ is modeled as a scaled and time-shifted version of a reference pulse template $P(t)$:
+\begin{equation}
+w(t) = A \cdot P(t - \Delta t) + \epsilon(t),
+\end{equation}
+where:
+\begin{itemize}
+    \item $A$ is the pulse amplitude,
+    \item $\Delta t$ is the time shift,
+    \item $\epsilon(t)$ represents measurement noise.
+\end{itemize}
+
+The goal is to estimate $(A, \Delta t)$ for each waveform.
+
+
+The model is nonlinear due to the time shift $\Delta t$. To obtain a tractable solution, a first-order Taylor expansion of the pulse template is performed around $\Delta t = 0$:
+\begin{equation}
+P(t - \Delta t) \approx P(t) - \Delta t \cdot P'(t),
+\end{equation}
+where $P'(t)$ denotes the derivative of the pulse shape.
+
+Substituting into the model:
+\begin{equation}
+w(t) \approx A \cdot P(t) - A \cdot \Delta t \cdot P'(t).
+\end{equation}
+
+Defining the auxiliary parameter
+\begin{equation}
+C = -A \cdot \Delta t,
+\end{equation}
+the model becomes linear:
+\begin{equation}
+w(t) \approx A \cdot P(t) + C \cdot P'(t).
+\end{equation}
+
+
+The optimal parameters $(A, C)$ are obtained by minimizing the quadratic cost function:
+\begin{equation}
+\chi^2(A, C) = \sum_{i=1}^{N} \left[ w(t_i) - A P(t_i) - C P'(t_i) \right]^2.
+\end{equation}
+
+Setting the derivatives of $\chi^2$ with respect to $A$ and $C$ to zero yields the normal equations:
+\begin{align}
+\sum_i P(t_i)\, w(t_i) &= A \sum_i P(t_i)^2 + C \sum_i P(t_i) P'(t_i), \\
+\sum_i P'(t_i)\, w(t_i) &= A \sum_i P(t_i) P'(t_i) + C \sum_i P'(t_i)^2.
+\end{align}
+
+
+Introducing the following scalar products:
+\begin{align}
+Ap   &= \sum_i w(t_i) P(t_i), \\
+Ad   &= \sum_i w(t_i) P'(t_i), \\
+PP   &= \sum_i P(t_i)^2, \\
+PdP  &= \sum_i P(t_i) P'(t_i), \\
+dPdP &= \sum_i P'(t_i)^2,
+\end{align}
+the system can be written in matrix form:
+\begin{equation}
+\begin{bmatrix}
+PP & PdP \\
+PdP & dPdP
+\end{bmatrix}
+\begin{bmatrix}
+A \\
+C
+\end{bmatrix}
+=
+\begin{bmatrix}
+Ap \\
+Ad
+\end{bmatrix}.
+\end{equation}
+
+
+The solution is obtained by inversion of the $2 \times 2$ system:
+\begin{equation}
+\Delta = PP \cdot dPdP - (PdP)^2,
+\end{equation}
+\begin{align}
+A &= \frac{Ap \cdot dPdP - Ad \cdot PdP}{\Delta}, \\
+C &= \frac{Ad \cdot PP - Ap \cdot PdP}{\Delta}.
+\end{align}
+
+
+Using the relation $C = -A \Delta t$, the time shift is given by:
+\begin{equation}
+\Delta t = -\frac{C}{A}.
+\end{equation}
+
+
+
+The linearization is only valid for small $\Delta t$. Therefore, the procedure is applied iteratively:
+
+\begin{enumerate}
+    \item Initialize $\Delta t^{(0)} = 0$.
+    \item At iteration $k$, evaluate the shifted template:
+    \begin{equation}
+    P^{(k)}(t) = P(t - \Delta t^{(k)}), \quad
+    P'^{(k)}(t) = P'(t - \Delta t^{(k)}).
+    \end{equation}
+    \item Solve the linear system for $(A^{(k)}, C^{(k)})$.
+    \item Update the time shift:
+    \begin{equation}
+    \Delta t^{(k+1)} = \Delta t^{(k)} - \frac{C^{(k)}}{A^{(k)}}.
+    \end{equation}
+    \item Repeat until convergence or for a fixed number of iterations.
+\end{enumerate}
+
+This procedure corresponds to a Gauss--Newton minimization of the nonlinear least-squares problem.
+
+
+The method can be interpreted as projecting the waveform onto two basis functions:
+\begin{itemize}
+    \item $P(t)$, which captures the amplitude,
+    \item $P'(t)$, which captures sensitivity to time shifts.
+\end{itemize}
+
+The coefficient $A$ determines the signal strength, while the ratio $C/A$ encodes the temporal misalignment between the waveform and the template.
+
+
+
+\end{document}
