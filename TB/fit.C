@@ -7,7 +7,7 @@
 #include <iostream>
 #include <cmath>
 
-void prova6()
+void fit()
 {
     // -------------------------
     // Load spline
@@ -89,7 +89,7 @@ void prova6()
     for (event = 0; event < nentries; event++)
     {
         tree->GetEntry(event);
-
+        cout << event << endl;
         const int N = 40;
 
         // copy channel IDs every event (IMPORTANT)
