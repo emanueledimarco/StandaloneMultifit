@@ -2,7 +2,6 @@ import ROOT as rt
 import math
 import os
 from array import array
-from alphaBetaFitter import AlphaBetaFitter
 
 rt.gInterpreter.AddIncludePath("/usr/include/eigen3")
 rt.gROOT.ProcessLine(".L resample.C+")
@@ -36,36 +35,31 @@ def buildFineGraph(
 
     gr = rt.TGraphErrors(
         len(xs),
-        array('d',xs),
-        array('d',ys),
-        array('d',exs),
-        array('d',eys)
+        array('d', xs),
+        array('d', ys),
+        array('d', exs),
+        array('d', eys)
     )
 
     return gr
-
 
 
 def processFile(
         inputFile,
         outdir="coeffs",
         diagnosticPlots=False,
-        nDiag=10
+        diagPercentage=0.1
 ):
 
-    doEB = True #sbagliato, deve essere per canale
-
-    os.makedirs(outdir,exist_ok=True)
-
-    fitter = AlphaBetaFitter(doEB)
+    os.makedirs(outdir, exist_ok=True)
 
     with open(inputFile) as f:
 
         for iline, line in enumerate(f):
 
-            isDiag = diagnosticPlots and (iline < nDiag)
 
-            if diagnosticPlots and iline > nDiag: break
+            diag_rand = rt.gRandom.Uniform() < diagPercentage * 1e-2
+            isDiag = diagnosticPlots and diag_rand
 
             toks = line.strip().split()
 
@@ -76,11 +70,7 @@ def processFile(
             # Geometry
             # ------------------------------------------------
 
-            ieta  = int(toks[0])
-            iphi  = int(toks[1])
-            ic    = int(toks[2])
-            iz    = int(toks[3])
-
+            isEB  = int(toks[0])
             detid = int(toks[4])
 
             # ------------------------------------------------
@@ -94,7 +84,7 @@ def processFile(
 
             maxv = max(samples)
 
-            ys = [y/maxv for y in samples]
+            ys = [y / maxv for y in samples]
 
             xs = [
                 i * sampling
@@ -106,28 +96,26 @@ def processFile(
 
             gr = rt.TGraphErrors(
                 len(xs),
-                array('d',xs),
-                array('d',ys),
-                array('d',ex),
-                array('d',ey)
+                array('d', xs),
+                array('d', ys),
+                array('d', ex),
+                array('d', ey)
             )
 
             # ------------------------------------------------
-            # Fit
+            # Spline interpolation
             # ------------------------------------------------
 
-            pars, errs = fitter.fit(gr)
-
-            fcn = fitter.getFcn()
-
-            fitFcn = fcn.Clone(
-                f"alphabeta_{detid}"
+            spline = rt.TSpline3(
+                f"spline_{detid}",
+                gr
             )
 
             if isDiag:
+
                 c1 = rt.TCanvas(
                     f"c_fit_{detid}",
-                    "AlphaBeta fit",
+                    "Spline interpolation",
                     800,
                     600
                 )
@@ -135,10 +123,16 @@ def processFile(
                 gr.SetMarkerStyle(20)
                 gr.Draw("AP")
 
-                fcn.Draw("same")
+                spline.SetLineColor(rt.kRed)
+                spline.SetLineWidth(2)
+                spline.Draw("same")
 
                 c1.SaveAs(
-                    f"{outdir}/fit_alphabeta_{detid}.root"
+                    f"{outdir}/fit_spline_{detid}.root"
+                )
+
+                c1.SaveAs(
+                    f"{outdir}/fit_spline_{detid}.png"
                 )
 
             # ------------------------------------------------
@@ -146,15 +140,17 @@ def processFile(
             # ------------------------------------------------
 
             fineGr = buildFineGraph(
-                fitFcn,
+                spline,
                 xmin=0,
-                xmax=12*sampling,
+                xmax=12 * sampling,
                 step=1
             )
 
             fineGr.SetName(
                 f"fineGraph_{detid}"
             )
+
+            print(fineGr)
 
             # ------------------------------------------------
             # Output coeff file
@@ -171,6 +167,7 @@ def processFile(
 
             rt.resample(
                 fineGr,
+                detid,
                 25,
                 coeffFile,
                 isDiag
@@ -189,5 +186,5 @@ if __name__ == "__main__":
         "template_histograms_ECAL_403687.txt",
         outdir="coeffs",
         diagnosticPlots=True,
-        nDiag=10
+        diagPercentage=0.1,
     )

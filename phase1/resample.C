@@ -11,6 +11,7 @@
 // Main function
 void resample(
     TGraphErrors* gr,
+    int detID,
     double dt=6.25,
     const char* outFile="coeffs",
     bool doPlot=false
@@ -28,8 +29,9 @@ void resample(
     double tMin = xMeasured.front();
     double tMax = xMeasured.back();
     std::vector<double> tSamples;
-    for(double t=tMin; t<=tMax; t+=dt) tSamples.push_back(t);
+    for(double t=tMin; t<tMax; t+=dt) tSamples.push_back(t);
     size_t Nint = tSamples.size();
+    cout << "intervals: " << Nint << endl;
 
     // Intervals centered on sampled points
     std::vector<double> x0(Nint), x1(Nint), xc(Nint);
@@ -146,7 +148,7 @@ void resample(
 
     // Save coefficients
     std::ofstream out(Form("%s.txt", outFile));
-    out << "# a b c d\n";
+    out << detID << " ";
     for(auto &s: segments){
         out << s.a << " " << s.b << " " << s.c << " " << s.d << " ";
     }
@@ -173,11 +175,11 @@ void resample(
       gr->SetMarkerStyle(20);
       gr->SetMarkerColor(kBlack);
       gr->Draw("AP");
-
+      gr->SetTitle("Spline on automation points");
       grRec->SetLineColor(kBlue);
       grRec->SetLineWidth(2);
       grRec->Draw("L SAME");
-
+      grRec->SetTitle("Reconstructed from C1 piece-wise cubic fit");
       TGraph* grSamples = new TGraph(Nint);
       for(size_t i=0;i<Nint;++i){
           double y = gr->Eval(xc[i]);
@@ -186,10 +188,13 @@ void resample(
       grSamples->SetMarkerStyle(21);
       grSamples->SetMarkerSize(1.2);
       grSamples->SetMarkerColor(kMagenta);
+      grSamples->SetTitle("Automation ADC points");
       grSamples->Draw("P SAME");
 
       c->BuildLegend();
       c->SaveAs(Form("%s.root", outFile));
-      std::cout<<"Black=measured, Blue=reconstructed, Magenta=sample points\n";
+      c->SaveAs(Form("%s.png", outFile));
+
+      std::cout<<"Black=Spline on automation points, Blue=reconstructed from cubic fit, Magenta=Automation ADC points\n";
     }
 }
