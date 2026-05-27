@@ -8,7 +8,6 @@
 #include <iostream>
 #include <TString.h>
 #include "PulseChiSqSNNLS.h"
-#include "Pulse.h"
 
 #include "TTree.h"
 #include "TF1.h"
@@ -18,56 +17,62 @@
 
 using namespace std;
 
-Pulse pSh;
+ Pulse pSh;
 
-const int nTemplateBins = 9;
-float pulseShapeTemplate[nTemplateBins];
+const int nTemplateBins = 11;
 float templateCovariance[NSAMPLES][NSAMPLES];
+float pulseShapeTemplate[nTemplateBins], signalTemplateError[nTemplateBins];
 
-std::vector<int> activeBXs = { -3, -2, -1,  0,  1,  2 };
+
+std::vector<int> activeBXs = { -3, -2, -1,  0,  1, 2};
 
 FullSampleVector fullpulse(FullSampleVector::Zero());
 FullSampleVector fullpulse_deriv(FullSampleVector::Zero());
+FullSampleVector fullpulse_deriv2(FullSampleVector::Zero());
 FullSampleMatrix fullpulsecov(FullSampleMatrix::Zero());
 SampleMatrix noisecor(SampleMatrix::Zero());
 BXVector activeBX;
 SampleVector amplitudes(SampleVector::Zero());
 SampleGainVector gains(-1 * SampleGainVector::Ones());
 
+FullSampleVector fullpulse_signal_template_error(FullSampleVector::Zero());
+
 
 void init()
 {
-  
-  pSh.SetFNAMESHAPE("data/EmptyFileTestBeamPhase2.root");
-  pSh.SetFNAMECOV("data/PulseCovarianceTestBeamPhase2.root");
+
+  pSh.SetFNAMESHAPE("data/TestBeamPhase2_PS_coeffs.txt");
+  pSh.SetFNAMECOV("data/PulseCovarianceTestBeamPhase_withFlatSignalError.root");
   pSh.Init();
 
   pSh.SetNoiseCorrelationZero();
 
-  // intime sample is [3] // edm
+  std::cout << std::endl << std::endl << "printing read PS" << std::endl;
+  //   intime sample is [3] // edm
   for(int i=0; i<nTemplateBins; i++){
-    
     //     double x = double( IDSTART + NFREQ * (i + 3) - WFLENGTH / 2);
-    double x = double( NFREQ * i );
+    double x = double( NFREQ * i - PULSESHAPE_SHIFT );
     pulseShapeTemplate[i] = pSh.fShape(x);
-    
+    std::cout << pulseShapeTemplate[i] << std::endl;
+    signalTemplateError[i] = pSh.fSignalShapeError(x);
   }
-  //  for(int i=0; i<(NSAMPLES+2); i++) pulseShapeTemplate[i] /= pulseShapeTemplate[2];
-  // 9 is the number of samples sufficient to cover the part non 0 of the pulse template
-  // distance from min early BX (-4) to max late BX (+2) = 4*NFREQ + 16 + 2*NFREQ = 40 (NFREQ=4, fullpulse length) (if min early BX =-3 then 3*4 + 16 + 2*4 = 36)
-  // shift from min early BX (-4) to first pulse sample (5) = 5 + 4 = 0
-  for (int i=0; i<nTemplateBins; ++i) fullpulse(i+14) = pulseShapeTemplate[i];
+
+  for (int i=0; i<nTemplateBins; ++i){
+    fullpulse(i+14) = pulseShapeTemplate[i];
+    fullpulse_signal_template_error(i+14) = signalTemplateError[i];
+  }
 
   for (int i = 0; i < nTemplateBins; ++i) {
     double x  = NFREQ * i;
-    double dp = pSh.fShape(x + 0.5);
-    double dm = pSh.fShape(x - 0.5);
-    fullpulse_deriv(i + 14) = (dp - dm);
+    double dp = pSh.fShape(x + 0.1 - PULSESHAPE_SHIFT );
+    double dm = pSh.fShape(x - 0.1 - PULSESHAPE_SHIFT );
+    fullpulse_deriv(i + 14) = (dp - dm)/0.2;
+    fullpulse_deriv2(i + 14) = (dp + dm - 2*pulseShapeTemplate[i])/0.01;
   }
 
-  //std::cout << " initialized fullpulse = " << std::endl << fullpulse << std::endl;
-  //std::cout << " initialized fullpulse_deriv = " << std::endl << fullpulse_deriv << std::endl;
-  
+  std::cout << " initialized fullpulse = " << std::endl << fullpulse << std::endl;
+  std::cout << " initialized fullpulse_deriv = " << std::endl << fullpulse_deriv << std::endl;
+
   for(int i=0; i<NSAMPLES; i++) {
     for(int j=0; j<NSAMPLES; j++) {
       templateCovariance[i][j] = pSh.fCov(i,j);
@@ -75,12 +80,14 @@ void init()
     }
   }
 
+
   std::cout << " initialized fullpulsecov = " << std::endl << fullpulsecov << std::endl;
 
   for (int i=0; i<NSAMPLES; ++i) {
     for (int j=0; j<NSAMPLES; ++j) {
       int vidx = std::abs(j-i);
       noisecor(i,j) = pSh.corr(vidx);
+      //if ( (i == 9) && (j==9) ) noisecor(i,j) = 100000.;
     }
   }
 
@@ -172,15 +179,17 @@ void run(std::string inputFile, std::string outFile,
   pulsefunc.setMaxShift(maxshift);
   pulsefunc.disableErrorCalculation();
 
-  
+  SampleGainVector badsamples = SampleGainVector::Zero();
+  //badsamples[9] = 1;
+
   for(int ievt=0; ievt<nentries; ++ievt){
     if (maxEvents>0 && ievt>=maxEvents) break;
     tree->GetEntry(ievt);
     for(int i=0; i<NSAMPLES; i++){
-      amplitudes[i] = samples->at(i);
+      amplitudes[i] = samples->at(i) + (fitPedestal ? FIXED_PEDESTAL : 0);
     }
 
-    bool status = pulsefunc.DoFit(amplitudes,noisecor,pedrms,activeBX,fullpulse,fullpulse_deriv,fullpulsecov,gains);
+    bool status = pulsefunc.DoFit(amplitudes,noisecor,pedrms,activeBX,fullpulse,fullpulse_deriv,fullpulsecov,fullpulse_signal_template_error,pSh,gains,badsamples);
     chisq = pulsefunc.ChiSq();
 
     SampleVector normResVec = pulsefunc.NormRes();
@@ -207,28 +216,29 @@ void run(std::string inputFile, std::string outFile,
     double aErr = status ? pulsefunc.Errors()[ipulseintime] : 0.;
     double time = status ? pulsefunc.T()[ipulseintime] : 0.;
     
-    std::cout << " aMax = " << aMax << " amplitudeTruth = " << amplitudeTruth << "  chisq = " << chisq << std::endl;
+    //std::cout << " aMax = " << aMax << " amplitudeTruth = " << amplitudeTruth << "  chisq = " << chisq << std::endl;
     // std::cout << " aErr = " << aErr << std::endl;
-    
+    double pedestal_offset = FIXED_PEDESTAL;
     for (unsigned int ipulse=0; ipulse<pulsefunc.BXs().rows(); ++ipulse) {
       int iReco = (int(pulsefunc.BXs().coeff(ipulse)));
       if (status) {
-        if (abs(iReco)<100) { 
+        if (abs(iReco)<PEDESTAL_BX_OFFSET) {
           //          std::cout << "\t ipulse = " << ipulse << " idx = " << iReco << "  ampli = " << pulsefunc.X()[ ipulse ] << std::endl;
           samplesReco[iReco - minBX] = pulsefunc.X()[ ipulse ];
           timeReco[iReco - minBX] = pulsefunc.T()[ ipulse ];
-        } else if (iReco>=100) {
-          std::cout << "pedestal[" << iReco-100 << "] = " << pulsefunc.X()[ ipulse ] << std::endl;
-          pedestalsReco[iReco-100] = pulsefunc.X()[ ipulse ];
+        } else if (iReco>=PEDESTAL_BX_OFFSET) {
+          pedestalsReco[iReco-PEDESTAL_BX_OFFSET] = pulsefunc.X()[ ipulse ] - pedestal_offset;
+          pedestal_offset = 0;
+          std::cout << "pedestal[" << iReco-PEDESTAL_BX_OFFSET << "] = " << pulsefunc.X()[ ipulse ] << std::endl;
         } else {
           std::cout << " idx < 0 is for bad sample (e.g. slew rate). This should not happen, not turned on yet" << std::endl;
         }
       } else {
-        if (iReco>=0 && iReco<100) {
+        if (iReco>=0 && iReco<PEDESTAL_BX_OFFSET) {
           samplesReco[iReco - minBX] = -1;
           timeReco[iReco - minBX] = -1;
-        } else if (iReco>=100) {
-          pedestalsReco[iReco-100] = -1;
+        } else if (iReco>=PEDESTAL_BX_OFFSET) {
+          pedestalsReco[iReco-PEDESTAL_BX_OFFSET] = -1;
         } else {
           std::cout << " idx < 0 is for bad sample (e.g. slew rate). This should not happen, not turned on yet" << std::endl;          
         }

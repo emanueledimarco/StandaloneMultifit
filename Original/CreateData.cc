@@ -50,8 +50,8 @@ int main(int argc, char** argv) {
 
   // Noise level (GeV)
   float sigmaNoise = 0.044;
-  float sigmaNoiseScale = 1;
-  
+  float sigmaNoiseScale = 6;
+
   // PU Scale factor
   float puFactor = 1;
 
@@ -244,14 +244,10 @@ int main(int argc, char** argv) {
   treeOut->Branch("wf_name",        wf_name,         "wf_name/C");
   treeOut->Branch("input_pedestal",            &pedestal,             "input_pedestal/F");
   treeOut->Branch("distortion_sample_4",            &distortion_sample_4,             "distortion_sample_4/F");
-  
-  
-  
-  
-  
-  
-  
+
   for (int ievt = 0; ievt < nEventsTotal; ievt++) {
+
+    if (pulse_shift == -100) real_pulse_shift = rnd.Gaus()*TIME_SMEAR;
     if (!(ievt%100)) {
       std::cout << " ievt = " << ievt << " :: " << nEventsTotal << std::endl;
     }
@@ -284,26 +280,34 @@ int main(int argc, char** argv) {
     for (int iwf = 0; iwf < nWF; iwf++) {
       pileup_signal.push_back(0.);
     }
-    
+
     // Add pileup to the waveform
     // time window is nWF ns wide and is centered at BX0
     for (int ibx = 0; ibx < nBX; ibx++) {
       for (int iwf = 0; iwf < nWF; iwf++) {
-        double t = (BX0 - ibx) * 25. + iwf/4. - (WFLENGTH / 2.)/4. - NPRESAMPLES * NFREQ;
+        //std::cout << std::endl << "bx: " << ibx << std::endl;
+        //std::cout << "wf: " << iwf << std::endl;
+        double t = (BX0 - ibx) * 25. + iwf/4. - (WFLENGTH / 2.)/4. - NPRESAMPLES * NFREQ - PULSESHAPE_SHIFT;
+
+        //std::cout << "BXO, WFLENGTH, NPRESAMPLES, NFREQ, PULSESHAPE_SHIFT: " << BX0 << " " << WFLENGTH << " " << NPRESAMPLES << " " << NFREQ << " " << PULSESHAPE_SHIFT << std::endl;
         double temp = pileup_signal.at(iwf);
+        if ((t < 0) || (t > NSAMPLES * NFREQ)) continue;
+        //std::cout << "pileup was: " << pileup_signal.at(iwf) << std::endl;
+        //std::cout << "time: " << t << std::endl;
+        //std::cout << "norm shape: " << pSh.fShape(t) << std::endl;
         // adding the pu times the scale factor to the waveform
         pileup_signal.at(iwf) = temp + energyPU.at(ibx) * pSh.fShape(t) * puFactor;
       }
     }
-    
+
     // Add signal to the waveform
     if (randomEnergy) {
       signalTruth = signalAmplitude * rnd.Rndm();
     }
 
     for (int iwf = 0; iwf < nWF; iwf++) {
-      double t = iwf/4. - (WFLENGTH / 2.)/4. - NPRESAMPLES * NFREQ;
-      pulse_signal.at(iwf) += signalTruth * pSh.fShape(t);
+      double t = iwf/4. - (WFLENGTH / 2.)/4. - NPRESAMPLES * NFREQ - PULSESHAPE_SHIFT;
+      pulse_signal.at(iwf) += signalTruth * pSh.fShape(t - real_pulse_shift - GENERATION_OFFSET);
     }
     
     // Construct the digitized points
@@ -333,7 +337,7 @@ int main(int argc, char** argv) {
     
     // Add signal and pileup
     for (int i=0; i < NSAMPLES; ++i) {
-      int pulse_index = TMath::Nint(4*(IDSTART + i * NFREQ - pulse_shift));
+      int pulse_index = TMath::Nint(4*(IDSTART + i * NFREQ));
       
       //---- slew rate
       if (distortion_sample_4 != 1) {
