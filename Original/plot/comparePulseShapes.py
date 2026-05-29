@@ -11,7 +11,7 @@ def style_graph(g, color, marker):
 
 def comparePulseShapes(pulse_graphs, samplings, offsets,
                        titles, xmin, xmax,
-                       pedestal_time=20):
+                       pedestal_time=0):
 
     canvas = ROOT.TCanvas("c1", "Pulse Shapes", 800, 600)
 
@@ -23,6 +23,7 @@ def comparePulseShapes(pulse_graphs, samplings, offsets,
     gr_resampled = []
     labels = []
     vlines = []
+    colors = [ROOT.kRed,ROOT.kBlue]
     
     # Estensione a tempi negativi
     xmin_extended = xmin - pedestal_time
@@ -30,6 +31,8 @@ def comparePulseShapes(pulse_graphs, samplings, offsets,
     for i, gr in enumerate(pulse_graphs):
 
         nbins = int((xmax - xmin_extended) / samplings[i])
+
+        print(f"i = {i}, {samplings[i]}, {xmin_extended}, {xmax}, {(xmax - xmin_extended)}, {nbins}")
 
         # Campionamento esteso
         x_original = np.linspace(xmin_extended, xmax, nbins + 1)
@@ -54,8 +57,8 @@ def comparePulseShapes(pulse_graphs, samplings, offsets,
         graph.SetName(f"{gr.GetName()}_resampled_{i}")
         graph.SetTitle("Pulse Shape")
         graph.SetMarkerStyle(8)
-        graph.SetMarkerColor(2 + i)
-        graph.SetLineColor(2 + i)
+        graph.SetMarkerColor(colors[i])
+        graph.SetLineColor(colors[i])
 
         gr_resampled.append(graph)
 
